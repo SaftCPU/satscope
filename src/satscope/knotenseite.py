@@ -89,7 +89,7 @@ async def _sicher(tor, methode, *argumente):
         return None
 
 
-def _skaliert(wert, grundeinheit="", basis=1000.0):
+def _skaliert(wert, grundeinheit="", basis=1000.0, stellen=None):
     """Grosse Zahl mit SI-Vorsatz: 6,68 TB statt 6.680.000.000.000 Byte.
 
     Liefert {wert, einheit, stellen} - formatiert wird erst in der Vorlage mit
@@ -109,8 +109,9 @@ def _skaliert(wert, grundeinheit="", basis=1000.0):
     while abs(w) >= basis and i < len(_SI) - 1:
         w /= basis
         i += 1
-    # Wenige signifikante Stellen: "6,68 TB" liest sich, "6,6800 TB" nicht.
-    stellen = 2 if abs(w) < 10 else (1 if abs(w) < 100 else 0)
+    if stellen is None:
+        # Wenige signifikante Stellen: "6,68 TB" liest sich, "6,6800 TB" nicht.
+        stellen = 2 if abs(w) < 10 else (1 if abs(w) < 100 else 0)
     return {"wert": w, "einheit": _SI[i] + grundeinheit, "stellen": stellen}
 
 
@@ -209,6 +210,16 @@ def _anteil(teil, ganz):
     return (100.0 * teil / ganz) if ganz else None
 
 
+def _ganz(wert):
+    """Ganze Zahl, sonst 0.
+
+    bitcoind liefert an diesen Stellen immer Zahlen. Ein Typfehler duerfte
+    trotzdem niemals die ganze Seite kosten - genau davor schuetzt _sicher()
+    nicht, weil er nicht beim Aufruf entsteht, sondern beim Rechnen danach.
+    """
+    return int(wert) if isinstance(wert, (int, float)) and wert == wert else 0
+
+
 # ------------------------------------------------------------- Gegenstellen
 def saeubern(rohe):
     """Whitelist-Projektion auf die Felder aus GEGENSTELLE_FELDER.
@@ -234,8 +245,8 @@ def gegenstellen(rohe, netze_roh=None, jetzt=None):
     for e in g:
         netz = e.get("network") if e.get("network") in NETZE else "not_publicly_routable"
         zaehler[netz] = zaehler.get(netz, 0) + 1
-        gesendet[netz] = gesendet.get(netz, 0) + int(e.get("bytessent") or 0)
-        empfangen[netz] = empfangen.get(netz, 0) + int(e.get("bytesrecv") or 0)
+        gesendet[netz] = gesendet.get(netz, 0) + _ganz(e.get("bytessent"))
+        empfangen[netz] = empfangen.get(netz, 0) + _ganz(e.get("bytesrecv"))
 
     # Welche Netze der Knoten ueberhaupt erreichen kann. Interessant wird das
     # erst im Abgleich: "Tor ist erreichbar, aber keine einzige Gegenstelle
@@ -273,18 +284,26 @@ def gegenstellen(rohe, netze_roh=None, jetzt=None):
     software = sorted(gruppen.items(), key=lambda p: (-p[1], p[0]))[:6]
 
     anonym = sum(z for netz, z in zaehler.items() if netz in ANONYM)
-    v2 = sum(1 for e in g if e.get("transport_protocol_type") == "v2")
+    # ⚠️ transport_protocol_type gibt es erst ab Core 26. Auf aelteren Knoten
+    # fehlt das Feld ueberall - dann ist die Antwort NICHT "keine ist
+    # verschluesselt" (das waere eine erfundene Aussage), sondern "unbekannt".
+    # Deshalb None statt 0, und die Zeile faellt weg statt falsch zu behaupten.
+    transport = [e.get("transport_protocol_type") for e in g]
+    bekannt = [x for x in transport if x in ("v1", "v2")]
+    v2 = sum(1 for x in bekannt if x == "v2") if bekannt else None
 
     liste = [{
         "netz": e.get("network") if e.get("network") in NETZE else "not_publicly_routable",
         "eingehend": bool(e.get("inbound")),
-        "art": _text_saeubern(e.get("connection_type"), 24),
         "ping_ms": (float(e["pingtime"]) * 1000.0
                     if isinstance(e.get("pingtime"), (int, float)) and e["pingtime"] > 0
                     else None),
         "software": software_name(e.get("subver")),
         "protokoll": e.get("version") if isinstance(e.get("version"), int) else None,
-        "v2": e.get("transport_protocol_type") == "v2",
+        # None = die Fassung kennt das Feld nicht; die Tabelle zeigt dann einen
+        # Strich, nicht "v1".
+        "transport": (e.get("transport_protocol_type")
+                      if e.get("transport_protocol_type") in ("v1", "v2") else None),
     } for e in g]
     # Nach Netz (feste Reihenfolge), dann eingehend/ausgehend, dann Ping.
     liste.sort(key=lambda e: (NETZE.index(e["netz"]), not e["eingehend"],
@@ -303,7 +322,7 @@ def gegenstellen(rohe, netze_roh=None, jetzt=None):
                            if e.get("connection_type") == "block-relay-only"),
         "manuell": sum(1 for e in g if e.get("connection_type") == "manual"),
         "verschluesselt": v2,
-        "verschluesselt_anteil": _anteil(v2, anzahl),
+        "verschluesselt_anteil": _anteil(v2, anzahl) if v2 is not None else None,
         "ping_best": min(pings) if pings else None,
         "ping_mitte": _mitte(pings),
         "ping_schlecht": max(pings) if pings else None,
@@ -508,7 +527,10 @@ async def seite(tor, jetzt=None):
         "beschnitten": bool((kette or {}).get("pruned")),
         "prune_ab": (kette or {}).get("pruneheight"),
         "prune_ziel": _skaliert((kette or {}).get("prune_target_size"), "B"),
-        "schwierigkeit": _skaliert((mining or {}).get("difficulty")),
+        # Zwei Nachkommastellen erzwungen: die Schwierigkeit aendert sich alle
+        # zwei Wochen um wenige Prozent. Gerundet auf "126 T" saehe sie
+        # monatelang eingefroren aus, obwohl sie sich bewegt.
+        "schwierigkeit": _skaliert((mining or {}).get("difficulty"), stellen=2),
         "hashrate": _skaliert((mining or {}).get("networkhashps"), "H/s"),
         "relaygebuehr": sat_vb((netz or {}).get("relayfee")),
         "erhoehungsgebuehr": sat_vb((netz or {}).get("incrementalfee")),

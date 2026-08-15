@@ -92,15 +92,21 @@ def btc_text(sat, sprache=STANDARD):
     """Satoshi als BTC mit acht Stellen, sprachrichtig.
 
     Bewusst NICHT ueber Fliesskomma - 0,1 + 0,2 ist dort nicht 0,3, und bei
-    Geldbetraegen faellt so etwas irgendwann auf. Gleiche Rechnung wie in
-    web.py; sie steht hier nochmals, damit die Blockseite auch dann zaehlbar
-    bleibt, wenn die Route den Helfer nicht mitgibt.
+    Geldbetraegen faellt so etwas irgendwann auf. Deshalb wird der ganze Teil
+    ganzzahlig abgetrennt und nur er gruppiert.
+
+    Der Vorkommateil bekommt Tausendertrennung, anders als web.py._btc: ein
+    Block bewegt schon mal sechsstellige Betraege, und "152300.00000000" liest
+    kein Mensch. Trenner und Komma folgen der Sprache, wie bei sprache.zahl.
     """
     if sat is None:
         return "–"
-    ganz, rest = divmod(int(sat), 100000000)
-    s = "%d.%08d" % (ganz, rest)
-    return s.replace(".", ",") if sprache == "de" else s
+    zeichen = "-" if int(sat) < 0 else ""
+    ganz, rest = divmod(abs(int(sat)), 100000000)
+    gruppiert = "{:,}".format(ganz)                  # englische Schreibweise
+    if sprache == "de":
+        return "%s%s,%08d" % (zeichen, gruppiert.replace(",", "."), rest)
+    return "%s%s.%08d" % (zeichen, gruppiert, rest)
 
 
 def uhrzeit(stempel):
@@ -410,6 +416,13 @@ def _zusammensetzen(kopf, stats, reihe, vorgaenger_zeit, spitze, verwaist,
         u = _urteil(eigene.get(name), [g.get(name) for g in gesammelt])
         if u:
             urteil[name] = u
+    # Zwei gleichlautende Einordnungssaetze direkt untereinander lesen sich wie
+    # ein Stottern ("Kein Block der letzten 12 lag tiefer." - zweimal). Faellt
+    # die Medianrate in dieselbe Klasse wie die guenstigste Rate, sagt der
+    # zweite Satz nichts Neues und entfaellt; der konkretere bleibt stehen.
+    if (urteil.get("medianrate") and urteil.get("minrate")
+            and urteil["medianrate"]["klasse"] == urteil["minrate"]["klasse"]):
+        urteil.pop("medianrate")
 
     # Die Fensterbreite ist gemessen, nicht gerechnet: Zeitstempel des
     # aeltesten Vergleichsblocks bis zu diesem hier. Bei 10-Minuten-Annahme

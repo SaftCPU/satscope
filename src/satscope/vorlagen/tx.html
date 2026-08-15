@@ -79,6 +79,11 @@ a.tx-wer:hover{color:var(--akzent)}
 .tx-merk.laeuft{color:var(--akzent)}
 .tx-daten{font-size:.72rem; color:var(--gedaempft); word-break:break-all;
   margin-top:3px; font-style:italic}
+.tx-quelle{display:inline-block; margin-top:3px; font-size:.68rem;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; color:var(--gedaempft);
+  text-decoration:none}
+.tx-quelle:hover{color:var(--akzent)}
+.tx-abstand{margin-top:18px}
 .tx-mehr{font-size:.74rem; color:var(--gedaempft); padding:9px 0;
   border-top:1px solid var(--linie)}
 
@@ -133,9 +138,11 @@ a.tx-wer:hover{color:var(--akzent)}
   <div class="tx-kachel">
     <span class="k">{{ t.t("tx.label.fee") }}</span>
     <span class="w">
+      {#- Fehlt die Gebuehr, steht dort ein Strich und sonst nichts: eine Zeile
+          "– BTC" darunter wiederholte die Luecke nur. -#}
       {%- if d.gebuehr_sat is none %}{{ t.t("value.missing") }}
-      {%- else %}{{ t.zahl(d.gebuehr_sat) }} <small>{{ t.t("unit.sat") }}</small>{% endif -%}
-      <span class="nebensatz">{{ btc(d.gebuehr_sat) }} {{ t.t("unit.btc") }}</span>
+      {%- else %}{{ t.zahl(d.gebuehr_sat) }} <small>{{ t.t("unit.sat") }}</small>
+      <span class="nebensatz">{{ btc(d.gebuehr_sat) }} {{ t.t("unit.btc") }}</span>{% endif -%}
     </span>
   </div>
   <div class="tx-kachel">
@@ -157,11 +164,12 @@ a.tx-wer:hover{color:var(--akzent)}
   {% if d.bestaetigt %}
   <div class="tx-kachel">
     <span class="k">{{ t.t("tx.label.confirmations") }}</span>
-    {# Das Alter waechst weiter, ohne die Seite neu zu laden - satscope.js
-       zaehlt jedes data-alter-seit hoch. Der Servertext steht trotzdem drin,
-       damit die Zeile auch ohne JavaScript stimmt. #}
+    {# Bewusst OHNE data-alter-seit: satscope.js rechnet dort in Stunden weiter
+       ("43128 h"), was bei jahrealten Transaktionen unlesbar ist. Und mitzaehlen
+       muesste es hier ohnehin nichts - die Zahl der Bestaetigungen daneben
+       aendert sich nur beim Neuladen. #}
     <span class="w">{{ t.zahl(d.bestaetigungen) }}
-      <span class="nebensatz" data-alter-seit="{{ d.blockzeit or '' }}">{{ dauer(d.block_alter) }}</span>
+      <span class="nebensatz">{{ t.t("tx.since", dauer=spanne(d.block_alter)) }}</span>
     </span>
   </div>
   <div class="tx-kachel">
@@ -186,9 +194,11 @@ a.tx-wer:hover{color:var(--akzent)}
     <span class="tx-median" style="left:{{ "%.1f"|format(d.band.mitte_pos) }}%"
           title="{{ t.t("tx.band.median") }}"></span>
   </div>
+  {# Nur die Enden der Skala beschriften. Die eigene Rate steht als Kachel
+     darueber und als Balkenende darunter - sie hier zu wiederholen, machte
+     die Zeile bei hohen Raten unleserlich. #}
   <div class="tx-marken">
     <span>{{ t.zahl(d.band.unten, 2) }} {{ t.t("unit.satvb") }}</span>
-    <span>{{ t.zahl(d.band.rate, 2) }} {{ t.t("unit.satvb") }}</span>
     <span>{{ t.zahl(d.band.oben, 2) }} {{ t.t("unit.satvb") }}</span>
   </div>
 </section>
@@ -217,6 +227,11 @@ a.tx-wer:hover{color:var(--akzent)}
           {{- e.art or "" }}{% if e.rbf %} · {{ t.t("tx.in.rbf") }}{% endif -%}
         </span>
       </span>
+      {# Ein Explorer, in dem man nicht rueckwaerts laufen kann, ist ein halber.
+         Steht oben schon die Adresse, kommt der Herkunftspunkt hierher. #}
+      {% if e.adresse and e.txid %}
+      <a class="tx-quelle" href="/tx/{{ e.txid }}">←&nbsp;{{ e.txid[:10] }}…:{{ e.vout }}</a>
+      {% endif %}
       {% if e.text %}<div class="tx-daten">{{ e.text }}</div>{% endif %}
     </div>
     {% endfor %}
@@ -236,17 +251,23 @@ a.tx-wer:hover{color:var(--akzent)}
       {% endif %}
       <span class="tx-unten">
         <span class="tx-betrag">{{ btc(a.betrag_sat) }}</span>
+        {# Skriptart UND Ausgabestand: die Art beantwortet "was ist das", der
+           Stand "was wurde daraus". Beides zusammen ist die ganze Zeile. #}
         <span class="tx-merk
           {{- ' weg' if a.status == 'ausgegeben' }}
           {{- ' offen' if a.status == 'offen' }}
           {{- ' laeuft' if a.status == 'ausgegeben_offen' }}">
+          {%- if a.art and a.status != "daten" %}{{ a.art }} · {% endif -%}
           {%- if a.status == "ausgegeben" %}{{ t.t("tx.out.spent") }}
           {%- elif a.status == "ausgegeben_offen" %}{{ t.t("tx.out.spent_pending") }}
           {%- elif a.status == "offen" %}{{ t.t("tx.out.unspent") }}
           {%- elif a.status == "daten" %}{{ t.t("tx.out.data") }}
-          {%- else %}{{ a.art or t.t("tx.out.unknown") }}{% endif -%}
+          {%- else %}{{ t.t("tx.out.unknown") }}{% endif -%}
         </span>
       </span>
+      {% if a.ausgegeben_von %}
+      <a class="tx-quelle" href="/tx/{{ a.ausgegeben_von }}">→&nbsp;{{ a.ausgegeben_von[:10] }}…</a>
+      {% endif %}
       {% if a.daten_text %}<div class="tx-daten">{{ a.daten_text }}</div>{% endif %}
     </div>
     {% endfor %}
@@ -295,7 +316,7 @@ a.tx-wer:hover{color:var(--akzent)}
 </section>
 {% endif %}
 
-<section class="zustand" style="margin-top:18px">
+<section class="zustand tx-abstand">
   <div class="zustand-kopf">
     <span class="punkt"></span>
     <span class="zustand-titel">{{ t.t("tx.label.details") }}</span>

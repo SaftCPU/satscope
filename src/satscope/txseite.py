@@ -55,8 +55,15 @@ VERGLEICHSBLOECKE = 3
 # heraus unhoeflich gegenueber einem Knoten, auf dem echtes Geld liegt.
 MAX_AUSGAENGE_PREVOUT = 100
 
-# Ebenso beim Index: je verschiedenem Skript eine Electrum-Abfrage. Mehr als
-# ein Dutzend lohnt die Wartezeit nicht - dann bleibt der Ausgabestand offen.
+# So viele verschiedene Vorgaenger-Transaktionen werden hoechstens einzeln
+# nachgeschlagen, um fehlende Eingangsbetraege zu fuellen (19-28 ms je Stueck).
+MAX_ELTERN = 10
+
+# Ebenso beim Index: je verschiedenem Skript eine Electrum-Abfrage. An Fulcrum
+# auf .67 gemessen (15.08.2026): 31 ms fuer eine normale Adresse (50 offene
+# Ausgaenge), 0,32 s fuer die Genesis-Spendenadresse mit 78.190 offenen
+# Ausgaengen. Zwoelf Abfragen sind damit rund 0,4 s - darueber lohnt die
+# Wartezeit nicht, dann bleibt der Ausgabestand eben offen.
 MAX_SKRIPTE = 12
 
 
@@ -208,6 +215,19 @@ def _opreturn(skript_hex):
     return len(daten), _lesbar(daten, mindest=3)
 
 
+def _btc_text(sat, t):
+    """Satoshi als BTC-Text - dieselbe Regel wie web._btc(), nur sprachbewusst.
+
+    Ganzzahlig geteilt, nicht ueber Fliesskomma: bei Geld faellt so etwas
+    irgendwann auf. Das Komma richtet sich nach der Sprache, wie ueberall.
+    """
+    if sat is None:
+        return t.t("value.missing")
+    ganz, rest = divmod(int(sat), 100000000)
+    text = "%d.%08d" % (ganz, rest)
+    return text.replace(".", ",") if t.sprache == "de" else text
+
+
 def spanne(sekunden, t):
     """Zeitspanne als Text: "1 Std. 20 Min." / "1 h 20 min".
 
@@ -334,6 +354,49 @@ def _chunk_lesen(antwort, txid):
     return ergebnis
 
 
+async def _prevouts_nachladen(tor, eingaenge, coinbase):
+    """Fehlende Eingangsbetraege durch Nachschlagen der Vorgaenger fuellen.
+
+    Notwendig, weil getrawtransaction die Vorgaenger-Ausgaenge NUR fuer
+    bestaetigte Transaktionen mitliefert: bitcoind liest sie aus den
+    Undo-Daten des Blocks, und den gibt es bei einer wartenden Transaktion
+    noch nicht. Ohne diesen Nachlauf zeigte ausgerechnet die interessanteste
+    Ansicht - die wartende Transaktion - lauter Striche statt Betraegen, und
+    ihre Gebuehr liesse sich nicht selbst nachrechnen.
+
+    Die Kosten sind gedeckelt: je verschiedenem Vorgaenger ein
+    getrawtransaction (19-28 ms gemessen). Bei MAX_ELTERN = 10 und der
+    Vierer-Schranke des Tors sind das rund 0,08 s Wartezeit. Eine
+    Zusammenlegung mit hundert Eingaengen wuerde dagegen 2,8 s Knotenlast
+    erzeugen - die bleibt ungefuellt, und die Seite sagt das auch.
+
+    Liefert True, wenn wegen zu vieler Vorgaenger gar nicht erst gefragt wurde.
+    """
+    if coinbase:
+        return False
+    offen = [e for e in eingaenge if e["betrag_sat"] is None and e["txid"]]
+    if not offen:
+        return False
+    eltern = sorted({e["txid"] for e in offen})
+    if len(eltern) > MAX_ELTERN:
+        return True
+    antworten = await asyncio.gather(
+        *[_sicher(tor, "getrawtransaction", p, True) for p in eltern])
+    nach_txid = {p: a for p, a in zip(eltern, antworten) if a}
+    for e in offen:
+        eltern_tx = nach_txid.get(e["txid"])
+        vouts = (eltern_tx or {}).get("vout") or []
+        if not isinstance(e["vout"], int) or e["vout"] >= len(vouts):
+            continue
+        quelle = vouts[e["vout"]] or {}
+        skript = quelle.get("scriptPubKey") or {}
+        e["betrag_sat"] = _sat(quelle.get("value"))
+        e["adresse"] = skript.get("address") or (skript.get("addresses") or [None])[0]
+        e["art"] = _typ_name(skript.get("type")) if skript.get("type") else None
+        e["skript_hex"] = skript.get("hex")
+    return False
+
+
 async def _ausgaben_im_mempool(tor, txid, anzahl):
     """Welche Ausgaenge werden gerade in einer UNBESTAETIGTEN Transaktion ausgegeben?
 
@@ -409,9 +472,11 @@ async def transaktion(tor, txid, jetzt=None):
                 "eingabe": eingabe[:80], "txid": None, "jetzt": jetzt}
 
     # Stufe 2 liefert zusaetzlich die Vorgaenger-Ausgaenge (Betrag, Skript) und
-    # die Gebuehr - beides nur, wenn der Knoten die Undo-Daten des Blocks noch
-    # hat. Ein beschnittener Knoten hat sie nicht; das kostet uns die
-    # Eingangsbetraege, nicht die Seite.
+    # die Gebuehr - aber NUR fuer bestaetigte Transaktionen und nur, solange der
+    # Knoten die Undo-Daten des Blocks noch hat. Fuer eine Transaktion im
+    # Mempool gibt bitcoind beides gar nicht heraus (es liest sie aus dem
+    # Block-Undo, und einen Block gibt es da noch nicht). Beide Luecken schliesst
+    # weiter unten _prevouts_nachladen().
     roh, fehler = await _versuch(tor, "getrawtransaction", txid, 2)
     if roh is None:
         # Zweiter Anlauf mit der kleinen Stufe: aeltere Knoten kennen die
@@ -421,6 +486,9 @@ async def transaktion(tor, txid, jetzt=None):
             return {"gefunden": False, "grund": _grund(fehler2 or fehler),
                     "eingabe": eingabe[:80], "txid": txid, "jetzt": jetzt}
 
+    # Ab hier gilt die Kennung aus der Antwort, nicht die aus der Adresszeile:
+    # nur sie passt sicher zu dem, was Mempool und Index zurueckmelden.
+    txid = roh.get("txid") or txid
     vins = roh.get("vin") or []
     vouts = roh.get("vout") or []
     coinbase = bool(vins) and "coinbase" in (vins[0] or {})
@@ -429,15 +497,11 @@ async def transaktion(tor, txid, jetzt=None):
     bestaetigt = bool(bestaetigungen and bestaetigungen > 0)
 
     # ---- Eingaenge
-    eingaenge, eingang_sat, prevouts_vollstaendig = [], 0, True
+    eingaenge = []
     for v in vins:
         vor = v.get("prevout") or {}
         skript = vor.get("scriptPubKey") or {}
         betrag = _sat(vor.get("value"))
-        if betrag is None and not coinbase:
-            prevouts_vollstaendig = False
-        else:
-            eingang_sat += betrag or 0
         sequenz = v.get("sequence")
         eingaenge.append({
             "coinbase": "coinbase" in v,
@@ -454,8 +518,6 @@ async def transaktion(tor, txid, jetzt=None):
             "text": _lesbar(bytes.fromhex(v["coinbase"]))
                     if v.get("coinbase") and _hex_ok(v["coinbase"]) else None,
         })
-    if coinbase:
-        eingang_sat, prevouts_vollstaendig = None, True
 
     # ---- Ausgaenge
     ausgaenge, ausgang_sat = [], 0
@@ -483,13 +545,24 @@ async def transaktion(tor, txid, jetzt=None):
         })
 
     # ---- Nebenlaeufig alles, was die Einordnung braucht
-    kette, kopf, eintrag, cluster, im_mempool = await asyncio.gather(
+    kette, kopf, eintrag, cluster, im_mempool, zu_viele_eltern = await asyncio.gather(
         _sicher(tor, "getblockchaininfo"),
         _sicher(tor, "getblockheader", blockhash) if blockhash else _nichts(),
         _sicher(tor, "getmempoolentry", txid) if not bestaetigt else _nichts(),
         _sicher(tor, "getmempoolcluster", txid) if not bestaetigt else _nichts(),
         _ausgaben_im_mempool(tor, txid, len(ausgaenge)),
+        _prevouts_nachladen(tor, eingaenge, coinbase),
     )
+
+    # Erst jetzt summieren: _prevouts_nachladen() hat die Eingaenge eben noch
+    # ergaenzt, und eine Summe aus halben Daten waere schlimmer als keine.
+    eingang_sat, prevouts_vollstaendig = None, True
+    if not coinbase:
+        fehlend = [e for e in eingaenge if e["betrag_sat"] is None]
+        prevouts_vollstaendig = not fehlend
+        if prevouts_vollstaendig:
+            eingang_sat = sum(e["betrag_sat"] for e in eingaenge)
+
     hoehe = (kette or {}).get("blocks")
     blockhoehe = (kopf or {}).get("height")
     blockzeit = roh.get("blocktime") or (kopf or {}).get("time")
@@ -506,16 +579,17 @@ async def transaktion(tor, txid, jetzt=None):
     rabatt_vbyte = int(zeugen_bytes * 3 / 4) if zeugen_bytes else None
     segwit = bool(zeugen_bytes) or any(e["zeuge"] for e in eingaenge)
 
-    # ---- Gebuehr: bevorzugt selbst gerechnet, ganzzahlig
+    # ---- Gebuehr. Eine Coinbase hat keine: was dort herauskommt, ist die
+    # Belohnung, kein Entgelt. Sonst zaehlt die selbst gerechnete Differenz
+    # zweier ganzer Zahlen vor jeder gemeldeten Fliesskommazahl.
     gebuehr_sat = None
-    if coinbase:
-        gebuehr_sat = None
-    elif prevouts_vollstaendig and eingang_sat is not None:
-        gebuehr_sat = eingang_sat - ausgang_sat
-    elif roh.get("fee") is not None:
-        gebuehr_sat = _sat(roh.get("fee"))
-    elif isinstance(eintrag, dict):
-        gebuehr_sat = _sat((eintrag.get("fees") or {}).get("base"))
+    if not coinbase:
+        if eingang_sat is not None:
+            gebuehr_sat = eingang_sat - ausgang_sat
+        elif roh.get("fee") is not None:
+            gebuehr_sat = _sat(roh.get("fee"))
+        elif isinstance(eintrag, dict):
+            gebuehr_sat = _sat((eintrag.get("fees") or {}).get("base"))
     gebuehr_vb = (gebuehr_sat / vgroesse) if (gebuehr_sat is not None and vgroesse) else None
 
     # ---- Mempool-Umfeld
@@ -620,9 +694,12 @@ async def transaktion(tor, txid, jetzt=None):
     # ---- Wechselgeld-Verdacht (ausdruecklich nur ein Verdacht)
     wechselgeld = None
     eingangsarten = {e["art"] for e in eingaenge if e["art"]}
-    if len(ausgaenge) == 2 and len(eingangsarten) == 1 and not coinbase:
+    # Nur echte Zahlungen zaehlen: ein OP_RETURN daneben macht aus "zwei
+    # Ausgaenge, einer davon Wechselgeld" sonst einen Fehlschluss.
+    zahlungen = [a for a in ausgaenge if not a["unausgebbar"]]
+    if len(zahlungen) == 2 and len(eingangsarten) == 1 and not coinbase:
         art = eingangsarten.pop()
-        treffer = [a for a in ausgaenge if a["art"] == art]
+        treffer = [a for a in zahlungen if a["art"] == art]
         if len(treffer) == 1:
             wechselgeld = treffer[0]["n"]
 
@@ -638,7 +715,7 @@ async def transaktion(tor, txid, jetzt=None):
         "gefunden": True,
         "grund": None,
         "jetzt": jetzt,
-        "txid": roh.get("txid") or txid,
+        "txid": txid,
         "wtxid": roh.get("hash"),
         "version": roh.get("version"),
         "coinbase": coinbase,
@@ -667,9 +744,10 @@ async def transaktion(tor, txid, jetzt=None):
         "antisniping": antisniping,
         "eingaenge": eingaenge,
         "ausgaenge": ausgaenge,
-        "eingang_sat": eingang_sat if prevouts_vollstaendig else None,
+        "eingang_sat": eingang_sat,
         "ausgang_sat": ausgang_sat,
         "prevouts_vollstaendig": prevouts_vollstaendig,
+        "zu_viele_eltern": zu_viele_eltern,
         "gebuehr_sat": gebuehr_sat,
         "gebuehr_vb": gebuehr_vb,
         "gebuehr_anteil": (gebuehr_sat * 100.0 / ausgang_sat)
@@ -724,26 +802,26 @@ def _band(rate, perzentile, schaetzungen):
     if rate is None:
         return None
     if perzentile:
-        unten, oben, mitte, quelle = float(perzentile[0]), float(perzentile[4]), \
-            float(perzentile[2]), "block"
+        marken, mitte, quelle = [float(p) for p in perzentile], float(perzentile[2]), "block"
     elif schaetzungen:
         werte = sorted(schaetzungen.values())
-        unten, oben, mitte, quelle = werte[0], werte[-1], werte[len(werte) // 2], "andrang"
+        marken, mitte, quelle = werte, werte[len(werte) // 2], "andrang"
     else:
         return None
+    # Die eigene Rate gehoert IN die Skala, nicht an ihren Rand geklemmt.
+    # Sonst stuende am rechten Ende "10 sat/vB", waehrend der Balken eine
+    # Transaktion mit 14 sat/vB zeigt - ein sichtbarer Widerspruch.
+    unten, oben = min(marken + [rate]), max(marken + [rate])
     if oben <= unten:
         return None
-    anteil = (rate - unten) / (oben - unten)
     return {
         "quelle": quelle,
         "unten": unten,
         "oben": oben,
         "mitte": mitte,
         "rate": rate,
-        "pos": max(0.0, min(1.0, anteil)) * 100.0,
-        "mitte_pos": max(0.0, min(1.0, (mitte - unten) / (oben - unten))) * 100.0,
-        "ueber": rate > oben,
-        "unter": rate < unten,
+        "pos": (rate - unten) / (oben - unten) * 100.0,
+        "mitte_pos": (mitte - unten) / (oben - unten) * 100.0,
     }
 
 
@@ -769,6 +847,17 @@ def befunde(d, t):
         sag("tx.f.coinbase", art="gut", h=z(d["blockhoehe"]))
         if d["reif_in"]:
             sag("tx.f.coinbase_reif", art="warn", n=z(d["reif_in"]))
+        # Die Aufteilung der Belohnung sieht man sonst nirgends an der
+        # Transaktion selbst - sie steht in der Blockstatistik, nicht in ihr.
+        stats = d["blockstats"] or {}
+        if stats.get("subsidy") is not None and stats.get("totalfee") is not None:
+            # Fehlt die Transaktionszahl, faellt der Satz auf seine kurze
+            # Fassung zurueck - ein Strich mitten im Satz waere Kauderwelsch.
+            sag("tx.f.coinbase_teile" if stats.get("txs") else "tx.f.coinbase_teile_kurz",
+                sub=_btc_text(stats["subsidy"], t),
+                geb=_btc_text(stats["totalfee"], t),
+                # txs zaehlt die Coinbase mit; gezahlt haben nur die anderen.
+                n=z((stats.get("txs") or 1) - 1))
         tag = next((e["text"] for e in d["eingaenge"] if e.get("text")), None)
         if tag:
             sag("tx.f.coinbase_tag", text=tag)
@@ -861,10 +950,14 @@ def befunde(d, t):
         sag(schluessel, art="warn", n=z(len(unterwegs)))
 
     # --- Form und Bauart
-    if d["segwit"] and d["rabatt_vbyte"]:
+    if d["coinbase"]:
+        # Der Zeugen-Rabatt einer Coinbase ist eine Formalie (ein Nullwert als
+        # Zeuge) - darueber einen Satz zu schreiben waere Fuellstoff.
+        pass
+    elif d["segwit"] and d["rabatt_vbyte"]:
         sag("tx.f.segwit", art="gut", b=z(d["zeugen_bytes"]),
             v=z(d["zeugen_bytes"] / 4.0, 0), s=z(d["rabatt_vbyte"]))
-    elif not d["segwit"] and not d["coinbase"]:
+    elif not d["segwit"]:
         sag("tx.f.kein_segwit")
 
     if not d["coinbase"]:
@@ -901,6 +994,9 @@ def befunde(d, t):
         sag("tx.f.gebuehr_anteil", art="warn", p=z(d["gebuehr_anteil"], 1))
 
     if not d["prevouts_vollstaendig"]:
-        sag("tx.f.keine_prevouts", art="warn")
+        if d["zu_viele_eltern"]:
+            sag("tx.f.zu_viele_eltern", art="warn", n=z(len(d["eingaenge"])))
+        else:
+            sag("tx.f.keine_prevouts", art="warn")
 
     return raus

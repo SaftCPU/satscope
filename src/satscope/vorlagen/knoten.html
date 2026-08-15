@@ -51,7 +51,10 @@
 .kn-cjdns{background:color-mix(in srgb, var(--gut) 38%, transparent)}
 .kn-not_publicly_routable{background:var(--gedaempft)}
 .kn-legende{display:flex; flex-wrap:wrap; gap:6px 16px; margin:0 0 4px}
-.kn-lpunkt{width:9px; height:9px; border-radius:3px; flex:none}
+/* inline-block, nicht flex-Kind: derselbe Farbtupfer steht einmal in einer
+   Tabellenzelle und einmal in einer Aufzaehlung. */
+.kn-lpunkt{width:9px; height:9px; border-radius:3px; display:inline-block;
+  vertical-align:middle}
 .kn-leintrag{display:flex; align-items:center; gap:7px; font-size:.8rem}
 .kn-leintrag .z{font-variant-numeric:tabular-nums; color:var(--gedaempft)}
 .kn-leer{opacity:.45}
@@ -164,6 +167,7 @@
     <span class="w">{{ menge(k.platte) }}
       <span class="nebensatz">
         {%- if k.beschnitten %}{{ t.t("node.disk.pruned", h=t.zahl(k.prune_ab)) }}
+          {% if k.prune_ziel %}{{ t.t("node.disk.prunetarget", menge=menge(k.prune_ziel) | trim) }}{% endif %}
         {%- elif k.platte %}{{ t.t("node.disk.full") }}{% endif -%}
       </span>
     </span>
@@ -193,7 +197,12 @@
 <section class="kn-abschnitt">
   <h2 class="kn-titel">{{ t.t("traffic.title") }}</h2>
   {% if k.verkehr %}
+  {# Den Satz nur, wenn die Zahl darin auch wirklich dasteht - "hat – an das
+     Netz verschenkt" waere ein Satz ohne Aussage. Die Kachel darunter zeigt
+     den Strich, das genuegt. #}
+  {% if k.verkehr.gesendet %}
   <p class="kn-satz">{{ t.t("traffic.given", menge=menge(k.verkehr.gesendet) | trim) }}</p>
+  {% endif %}
   <div class="kn-paar">
     <div class="kn-kachel">
       <span class="k">{{ t.t("traffic.sent") }}</span>
@@ -253,15 +262,34 @@
          title="{{ netzname(n.schluessel) | trim }}: {{ t.zahl(n.anzahl) }}"></div>
     {%- endfor -%}
   </div>
-  <div class="kn-legende">
-    {% for n in g.netze %}
-    <span class="kn-leintrag {{ 'kn-leer' if not n.anzahl }}">
-      <span class="kn-lpunkt kn-{{ n.schluessel }}"></span>
-      {{ netzname(n.schluessel) }}
-      <span class="z">{{ t.zahl(n.anzahl) }}{% if n.anteil is not none and n.anzahl %} · {{ t.zahl(n.anteil, 0) }} %{% endif %}</span>
-    </span>
-    {% endfor %}
+  {# Die Aufschluesselung traegt zugleich die Legende des Balkens: derselbe
+     Farbtupfer, damit man ohne Suchen weiss, welcher Streifen wozu gehoert. #}
+  <div class="kn-rollen">
+    <table class="kn-tabelle">
+      <thead><tr>
+        <th>{{ t.t("peers.net") }}</th>
+        <th style="text-align:right">{{ t.t("peers.count") }}</th>
+        <th style="text-align:right">{{ t.t("peers.share") }}</th>
+        <th style="text-align:right">{{ t.t("traffic.sent") }}</th>
+        <th style="text-align:right">{{ t.t("traffic.received") }}</th>
+      </tr></thead>
+      <tbody>
+      {% for n in g.netze %}
+      <tr class="{{ 'kn-leer' if not n.anzahl }}">
+        <td><span class="kn-lpunkt kn-{{ n.schluessel }}"></span> {{ netzname(n.schluessel) }}</td>
+        <td class="zahl">{{ t.zahl(n.anzahl) }}</td>
+        <td class="zahl">{% if n.anzahl and n.anteil is not none %}{{ t.zahl(n.anteil, 0) }} %{% else %}{{ t.t("value.missing") }}{% endif %}</td>
+        <td class="zahl">{% if n.anzahl %}{{ menge(n.gesendet) }}{% else %}{{ t.t("value.missing") }}{% endif %}</td>
+        <td class="zahl">{% if n.anzahl %}{{ menge(n.empfangen) }}{% else %}{{ t.t("value.missing") }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
+  {# Der Bezugsrahmen gehoert zur Zahl: das sind KEINE Summen seit dem Start
+     des Knotens, sondern je Verbindung - sie fangen bei jedem Neuaufbau
+     wieder bei null an. #}
+  <p class="kn-fussnote">{{ t.t("peers.traffic.note") }}</p>
 
   {# Der Datenschutz-Befund: was diese Verteilung fuer den Nutzer bedeutet. #}
   <p class="kn-satz">
@@ -269,9 +297,17 @@
     {%- elif g.anonym %}{{ t.t("peers.anon.some", p=t.zahl(g.anonym_anteil, 0)) }}
     {%- else %}{{ t.t("peers.anon.none") }}{% endif -%}
   </p>
-  {% for s in g.stille %}
-  <p class="kn-satz gedaempft">{{ t.t("peers.silent", netz=netzname(s) | trim) }}</p>
-  {% endfor %}
+  {% if g.stille %}
+  {#- Ein Satz statt vier: bei fuenf erreichbaren Netzen und wenigen
+      Gegenstellen stuenden hier sonst vier fast gleiche Zeilen. namespace,
+      weil ein {% set %} in der Schleife sonst am Schleifenende verfaellt. -#}
+  {% set nn = namespace(text="") %}
+  {%- for s in g.stille %}{% set nn.text = nn.text + ("" if loop.first else ", ") + t.t("net." + s) %}{% endfor -%}
+  <p class="kn-satz gedaempft">
+    {{- t.t("peers.silent", netz=nn.text) if g.stille | length == 1
+        else t.t("peers.silent.many", netz=nn.text) -}}
+  </p>
+  {% endif %}
 
   <div class="zeile">
     <span class="k">{{ t.t("peers.direction") }}</span>
@@ -286,13 +322,18 @@
   <div class="zeile">
     <span class="k">{{ t.t("peers.ping") }}</span>
     <span class="w">
+      {#- Der Median, nicht der Mittelwert: eine haengende Gegenstelle hinter
+          Tor zoege den um Hunderte Millisekunden hoch. Die Spanne nur, wenn es
+          ueberhaupt eine gibt. -#}
       {%- if g.ping_mitte is not none %}{{ t.zahl(g.ping_mitte, 0) }} ms
-        <span class="nebensatz">{{ t.t("peers.ping.range",
-          best=t.zahl(g.ping_best, 0), mid=t.zahl(g.ping_mitte, 0),
-          worst=t.zahl(g.ping_schlecht, 0)) }}</span>
+        {% if g.ping_best != g.ping_schlecht %}<span class="nebensatz">{{ t.t("peers.ping.range",
+          best=t.zahl(g.ping_best, 0), worst=t.zahl(g.ping_schlecht, 0)) }}</span>{% endif %}
       {%- else %}{{ t.t("value.missing") }}{% endif -%}
     </span>
   </div>
+  {# Die Zeile faellt ganz weg, wenn der Knoten das Feld nicht kennt (vor Core
+     26): "0 von 24 verschluesselt" waere dort eine erfundene Aussage. #}
+  {% if g.verschluesselt is not none %}
   <div class="zeile">
     <span class="k">{{ t.t("peers.encrypted") }}</span>
     <span class="w">{{ t.zahl(g.verschluesselt) }} / {{ t.zahl(g.anzahl) }}
@@ -303,6 +344,7 @@
       </span>
     </span>
   </div>
+  {% endif %}
 
   {% if g.nur_bloecke %}
   <p class="kn-satz gedaempft">
@@ -350,7 +392,7 @@
           <td>{{ t.t("peers.in") if e.eingehend else t.t("peers.out") }}</td>
           <td class="zahl">{% if e.ping_ms is not none %}{{ t.zahl(e.ping_ms, 0) }}{% else %}{{ t.t("value.missing") }}{% endif %}</td>
           <td>{{ e.software or t.t("value.missing") }}</td>
-          <td>{{ "v2" if e.v2 else "v1" }}</td>
+          <td>{{ e.transport or t.t("value.missing") }}</td>
         </tr>
         {% endfor %}
         </tbody>
@@ -389,7 +431,8 @@
         <td class="zahl">{{ t.zahl(s.laenge) }}</td>
         {# Unbekannter Zustand: lieber der Rohwert von bitcoind als ein
            sichtbarer fehlender Schluessel. #}
-        <td>{{ t.t("tips.state." + s.stand_schluessel) if s.stand_schluessel else s.stand }}</td>
+        <td>{{ t.t("tips.state." + s.stand_schluessel) if s.stand_schluessel
+               else (s.stand or t.t("value.missing")) }}</td>
       </tr>
       {% endfor %}
       </tbody>
@@ -414,7 +457,9 @@
 
   {% for f in k.softforks.laufend %}
   <p class="kn-satz"><b>{{ f.anzeige }}</b>
-    <span class="kn-marke">{{ t.t("forks.state." + f.stand) if f.stand else "" }}</span>
+    {#- Kein leeres Schildchen, wenn der Zustand fehlt: ein umrandetes Nichts
+        sieht aus wie ein Fehler. -#}
+    {% if f.stand %}<span class="kn-marke">{{ t.t("forks.state." + f.stand) }}</span>{% endif %}
     {% if f.bit is not none %}<span class="kn-marke">{{ t.t("forks.bit", n=f.bit) }}</span>{% endif %}
   </p>
   {% if f.breite is not none %}

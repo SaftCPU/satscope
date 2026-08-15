@@ -149,14 +149,29 @@ def _takt_und_rate(probe):
     """
     if len(probe) < 2:
         return None, None
-    spanne = (_zahl(probe[-1].get("time")) or 0) - (_zahl(probe[0].get("time")) or 0)
+    erster, letzter = probe[0], probe[-1]
+    spanne = (_zahl(letzter.get("time")) or 0) - (_zahl(erster.get("time")) or 0)
     if spanne <= 0:
         return None, None
-    abstaende = len(probe) - 1
+
+    # Abstaende aus den HOEHEN, nicht aus der Laenge der Liste: faellt ein
+    # einzelner getblockstats aus, ist die Liste kuerzer, der Zeitraum aber
+    # gleich lang - der Takt kaeme sonst zu gross heraus.
+    h0, h1 = _zahl(erster.get("height")), _zahl(letzter.get("height"))
+    abstaende = int(h1 - h0) if (h0 is not None and h1 is not None) else len(probe) - 1
+    if abstaende <= 0:
+        return None, None
+    takt = spanne / abstaende
+
+    # ⚠️ Die Transaktionsrate braucht eine LUECKENLOSE Probe. Fehlt ein Block,
+    # fehlen seine Transaktionen - die Rate waere dann nicht ungenau, sondern
+    # nachweislich zu niedrig. Lieber gar keine Zahl als eine falsche.
+    if len(probe) - 1 != abstaende:
+        return takt, None
     # Der erste Block der Probe liefert nur den Startzeitpunkt; seine
     # Transaktionen liegen VOR der Spanne und duerfen nicht mitzaehlen.
     txe = sum((_zahl(b.get("txs")) or 0) for b in probe[1:])
-    return spanne / abstaende, (txe / spanne if txe else None)
+    return takt, (txe / spanne if txe else None)
 
 
 async def _heute(tor, hoehe, block_zeit):
@@ -333,10 +348,24 @@ async def erhebe(tor, z=None):
     d["halbierung"] = _halbierung(hoehe)
     d["anpassung"] = _anpassung(hoehe, block_zeit, kopf_periode, takt,
                                 d["schwierigkeit"])
-    d["mempool"] = _mempool(z, d["gebuehren"])
+    d["mempool"] = _mempool(z)
     d["block"] = _block(letzter)
     d["schwierigkeit_start"] = _zahl((kopf_halbierung or {}).get("difficulty"))
     return d
+
+
+def _eta(sekunden):
+    """(Textschluessel, Wert) fuer "noch etwa so lange".
+
+    Unter zwei Tagen in Stunden, darueber in Tagen - "0,3 Tage" sagt einem
+    Menschen nichts. Das genaue Datum setzt spiel.js dazu, weil nur der
+    Browser die Zeitzone des Lesers kennt.
+    """
+    if not sekunden or sekunden <= 0:
+        return None, None
+    if sekunden < 2 * 86400:
+        return "spiel.eta.hours", sekunden / 3600.0
+    return "spiel.eta.days", sekunden / 86400.0
 
 
 def _uhrzeit(sekunden):
@@ -356,11 +385,18 @@ def _uhrzeit(sekunden):
 
 
 def _halbierung(hoehe):
-    """Zaehler bis zur naechsten Halbierung."""
+    """Zaehler bis zur naechsten Halbierung.
+
+    ⚠️ Auch hier gilt: IMMER derselbe Satz Schluessel. Ein fehlender wird in
+    Jinja zu Undefined, und darauf laeuft jede Abfrage der Vorlage auf - mit
+    StrictUndefined als Absturz, ohne als stille Luecke.
+    """
+    leer = dict.fromkeys((
+        "epoche", "hoehe", "verbleibend", "fortschritt_p", "sekunden",
+        "zeitpunkt", "subvention_sat", "naechste_sat", "eta_schluessel",
+        "eta_wert"))
     if hoehe is None:
-        return {"epoche": None, "verbleibend": None, "fortschritt_p": None,
-                "sekunden": None, "zeitpunkt": None, "hoehe": None,
-                "subvention_sat": None, "naechste_sat": None}
+        return leer
     epoche = hoehe // HALBIERUNG_ALLE
     ziel = (epoche + 1) * HALBIERUNG_ALLE
     verbleibend = ziel - hoehe
@@ -369,9 +405,12 @@ def _halbierung(hoehe):
     # Schwierigkeitsanpassung zieht den Takt ueber diese Zeit zurueck auf
     # zehn Minuten. Der Tagestakt hochgerechnet auf vier Jahre waere Unsinn.
     sekunden = verbleibend * ZIEL_TAKT
+    eta_schluessel, eta_wert = _eta(sekunden)
     return {
         "epoche": epoche,
         "hoehe": ziel,
+        "eta_schluessel": eta_schluessel,
+        "eta_wert": eta_wert,
         "verbleibend": verbleibend,
         "fortschritt_p": (hoehe % HALBIERUNG_ALLE) * 100.0 / HALBIERUNG_ALLE,
         "sekunden": sekunden,
@@ -401,7 +440,8 @@ def _anpassung(hoehe, block_zeit, kopf_periode, takt, schwierigkeit):
     """
     leer = {"verbleibend": None, "fortschritt_p": None, "aenderung_p": None,
             "takt_s": None, "sekunden": None, "zeitpunkt": None,
-            "im_zeitraum": None, "neu": None}
+            "im_zeitraum": None, "neu": None, "eta_schluessel": None,
+            "eta_wert": None}
     if hoehe is None:
         return leer
 
@@ -430,10 +470,11 @@ def _anpassung(hoehe, block_zeit, kopf_periode, takt, schwierigkeit):
     tempo = takt or d["takt_s"] or ZIEL_TAKT
     d["sekunden"] = verbleibend * tempo
     d["zeitpunkt"] = int(time.time() + d["sekunden"])
+    d["eta_schluessel"], d["eta_wert"] = _eta(d["sekunden"])
     return d
 
 
-def _mempool(z, gebuehren):
+def _mempool(z):
     """Der Mempool in Bloecken statt in Megabyte - das versteht man sofort."""
     b = _zahl(z.get("mempool_bytes"))
     # getmempoolinfo.bytes zaehlt virtuelle Groesse; ein Block fasst rund
@@ -564,6 +605,14 @@ def einordnen(d):
         auf = (schnell / d["roh_sat_vb"] - 1) * 100.0
         if abs(auf) >= 5:
             d["aufschlag_p"] = auf
+
+    # Die Untergrenze des eigenen Mempools ist nur dann eine Nachricht, wenn
+    # sie ueber der ueblichen 1 sat/vB liegt. ⚠️ Der Vergleich braucht Luft
+    # nach oben: 0,00001 BTC/kvB sind nach der Umrechnung nicht exakt 1,0,
+    # sondern 1,0000000000000002 - ohne Toleranz stuende auf jeder ruhigen
+    # Seite "unter 1,000 sat/vB nimmt dein Knoten nichts an".
+    grund = d.get("mempool_min_sat_vb")
+    d["mempool_grenze"] = grund if (grund and grund > 1.01) else None
 
     # ⚠️ Die Richtung der Schwierigkeitsanpassung wird bewusst NICHT gruen
     # oder rot gefaerbt. Steigende Schwierigkeit heisst "es wurde schneller

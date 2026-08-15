@@ -1,7 +1,6 @@
-// Das Live-Band der Bloecke. Kein Framework, kein Bauschritt, kein CDN:
-// mempool.space laedt fuer dieselbe Reihe 4,6 MB JavaScript. Kein sichtbarer
-// Satz steht hier - alle Texte kommen aus dem Katalog und reisen in data-texte
-// mit; und kein Wert wird je als HTML eingesetzt, immer nur als textContent.
+// Das Live-Band der Bloecke. Kein Framework, kein CDN: mempool.space laedt
+// fuer dieselbe Reihe 4,6 MB JavaScript. Kein sichtbarer Satz steht hier (alle
+// Texte kommen aus data-texte), kein Wert wird je als HTML eingesetzt.
 (function () {
   "use strict";
 
@@ -12,22 +11,18 @@
   try { T = JSON.parse(wurzel.getAttribute("data-texte") || "{}"); } catch (e) { T = {}; }
   var QUELLE = wurzel.getAttribute("data-quelle") || "/api/kette";
   var ZIEL = wurzel.getAttribute("data-blockziel") || "";
-  // Dieselbe Quelle wie serverseitig, damit Zahlen auf beiden Seiten gleich
-  // aussehen: deutsch 1.234,56 gegen englisch 1,234.56.
+  // Dieselbe Quelle wie serverseitig: deutsch 1.234,56 gegen englisch 1,234.56.
   var SPRACHE = document.documentElement.lang === "de" ? "de-DE" : "en-US";
   var STRICH = T.fehlt || "–";
   var TAKT = 5000;
-  // Farbstufen in sat/vB, absolut und nicht relativ zum Fenster: eine Skala,
-  // die sich am eigenen Bild ausrichtet, zeigt IMMER einen gruenen und einen
-  // roten Block - auch wenn alle zwoelf gleich teuer waren.
+  // Farbstufen in sat/vB, absolut und nicht relativ zum Fenster: eine Skala am
+  // eigenen Bild zeigt IMMER einen gruenen und einen roten Block.
   var STUFEN = [1, 3, 8, 20, 50];
 
-  var reihe = document.getElementById("kette-reihe");
-  var rahmen = document.getElementById("kette-rahmen");
-  var warte = document.getElementById("kette-warte");
-  var tafel = document.getElementById("kette-tafel");
-  var muster = document.getElementById("kette-muster");
-  var zusammen = document.getElementById("kette-zusammen");
+  function nach(id) { return document.getElementById(id); }
+  var reihe = nach("kette-reihe"), rahmen = nach("kette-rahmen");
+  var warte = nach("kette-warte"), tafel = nach("kette-tafel");
+  var muster = nach("kette-muster");
 
   var elemente = {};    // Hoehe -> Element
   var bekannt = [];     // Hoehen im DOM, aelteste zuerst
@@ -40,22 +35,20 @@
     ? matchMedia("(prefers-reduced-motion: reduce)") : null;
   function ruhig() { return !!(ruhelage && ruhelage.matches); }
 
-  // NUR benannte Platzhalter - die Wortstellung weicht zwischen den Sprachen
-  // ab, {0} waere schon falsch.
-  function t(schluessel, werte) {
-    var s = T[schluessel];
-    if (s === undefined) { return "!" + schluessel + "!"; }
+  // NUR benannte Platzhalter - die Wortstellung weicht ab, {0} waere falsch.
+  function t(k, werte) {
+    var s = T[k];
+    if (s === undefined) { return "!" + k + "!"; }
     if (!werte) { return s; }
     return s.replace(/\{(\w+)\}/g, function (_, n) {
       return werte[n] !== undefined ? werte[n] : "{" + n + "}";
     });
   }
 
-  function zahl(w, stellen) {
+  function zahl(w, s) {
     if (w === null || w === undefined || isNaN(w)) { return STRICH; }
-    stellen = stellen || 0;
     return Number(w).toLocaleString(SPRACHE,
-      { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+      { minimumFractionDigits: s || 0, maximumFractionDigits: s || 0 });
   }
 
   // sat/vB: unter zehn braucht es Nachkommastellen, darueber sind sie Ballast.
@@ -63,8 +56,6 @@
     if (w === null || w === undefined || isNaN(w)) { return STRICH; }
     return Number(w).toLocaleString(SPRACHE, { maximumFractionDigits: w < 10 ? 2 : 0 });
   }
-
-  function btc(sat, stellen) { return sat === null ? STRICH : zahl(sat / 1e8, stellen); }
 
   function jetzt() { return Date.now() / 1e3 + versatz; }
 
@@ -90,8 +81,8 @@
     return k;
   }
 
-  function setzAlle(el, vorsatz, werte) {
-    Object.keys(werte).forEach(function (k) { setz(el, vorsatz + k, werte[k]); });
+  function setzAlle(el, vor, werte) {
+    Object.keys(werte).forEach(function (k) { setz(el, vor + k, werte[k]); });
   }
 
   function uhrstellen(el, wahl, zeit) {
@@ -99,8 +90,8 @@
     if (k) { k.setAttribute("data-zeit", zeit === null ? "" : zeit); }
   }
 
-  // Ein Block, in Text uebersetzt. Kaestchen und Tafel teilen sich das, damit
-  // dieselbe Zahl nicht an zwei Stellen verschieden gerundet wird.
+  // Ein Block in Text - Kaestchen und Tafel teilen sich das, damit dieselbe
+  // Zahl nicht zweimal verschieden gerundet wird.
   function worte(b) {
     var g = (DATEN && DATEN.blockgewicht) || 4e6;
     return {
@@ -110,7 +101,6 @@
         t("spanne", { min: geb(b.gebuehr_min), max: geb(b.gebuehr_max) }),
       txs: b.txs === null ? t("keine") : t("txs", { n: zahl(b.txs) }),
       mb: b.groesse === null ? "" : t("mb", { n: zahl(b.groesse / 1e6, 2) }),
-      voll: b.gewicht === null ? "" : t("voll", { n: zahl(b.gewicht / (g / 100), 1) }),
       anteil: b.gewicht === null ? 0 : Math.min(100, b.gewicht / g * 100)
     };
   }
@@ -119,11 +109,7 @@
     var w = worte(b);
     el.setAttribute("data-hoehe", b.hoehe);
     el.setAttribute("data-geb", stufe(b.gebuehr_median));
-    el.setAttribute("tabindex", "0");
-    if (ZIEL) {
-      el.setAttribute("href", ZIEL + b.hoehe);
-      el.setAttribute("title", t("oeffnen", { n: w.hoehe }));
-    }
+    if (ZIEL) { el.setAttribute("href", ZIEL + b.hoehe); }
     setzAlle(el, ".kb-", {
       hoehe: w.hoehe, med: w.med, spanne: w.spanne, txs: w.txs, mb: w.mb,
       abzeichen: b.billigster ? "▾" : (b.teuerster ? "▴" : "")
@@ -181,7 +167,8 @@
 
   function zeichneWarte(m) {
     if (!m) { return; }
-    var erste = (m.schaetzung && m.schaetzung.length) ? m.schaetzung[0].satvb : null;
+    var s = m.schaetzung || [];
+    var erste = s.length ? s[0].satvb : null;
     warte.setAttribute("data-geb", stufe(erste !== null ? erste : m.min_gebuehr));
     var f = warte.querySelector(".kb-fuell i");
     if (f) { f.style.height = (m.fuellung === null ? 0 : m.fuellung * 100) + "%"; }
@@ -192,12 +179,11 @@
         : (m.min_gebuehr === null ? STRICH : t("eintritt", { n: geb(m.min_gebuehr) })),
       anzahl: m.anzahl === null ? STRICH
         : (m.anzahl === 0 ? t("leer") : t("warten", { n: zahl(m.anzahl) })),
-      mb: m.bytes === null ? STRICH : t("mb", { n: zahl(m.bytes / 1e6, 1) })
+      mb: m.bytes === null ? STRICH : t("mb", { n: zahl(m.bytes / 1e6, 1) }),
+      mehr: s.slice(1).map(function (x) {
+        return t("schaetzung_ziel", { ziel: zahl(x.ziel), n: geb(x.satvb) });
+      }).join(" · ")
     });
-    // Die weiteren Ziele in den Tooltip; im Kaestchen waeren sie zu viel.
-    warte.setAttribute("title", (m.schaetzung || []).map(function (s) {
-      return t("schaetzung_ziel", { ziel: zahl(s.ziel), n: geb(s.satvb) });
-    }).join("\n"));
   }
 
   function zeigeTafel(hoehe) {
@@ -224,14 +210,13 @@
       median: b.gebuehr_median === null ? STRICH : t("median", { n: w.med }),
       spanne: w.spanne,
       mb: w.mb || STRICH,
-      voll: w.voll,
       txs: w.txs,
-      einaus: b.ein === null ? "" : t("einaus", { ein: zahl(b.ein), aus: zahl(b.aus) }),
-      belohnung: b.belohnung === null ? STRICH : t("belohnung", { n: btc(b.belohnung, 3) }),
-      gebuehren: b.gebuehren === null ? "" : t("gebuehren", { n: btc(b.gebuehren, 4) }),
-      // Ein negativer Abstand ist echt (ein Miner darf innerhalb der
-      // Median-Zeit-Regel zurueckdatieren). Gezeigt wird er nicht - er saehe
-      // wie ein Fehler aus -, erfunden wird aber auch nichts.
+      belohnung: b.belohnung === null ? STRICH
+        : t("belohnung", { n: zahl(b.belohnung / 1e8, 3) }),
+      gebuehren: b.gebuehren === null ? ""
+        : t("gebuehren", { n: zahl(b.gebuehren / 1e8, 4) }),
+      // Ein negativer Abstand ist echt (Rueckdatierung innerhalb der
+      // Median-Zeit-Regel). Gezeigt wird er nicht, erfunden aber auch nichts.
       abstand: (b.abstand === null || b.abstand < 0) ? "" : (b.abstand < 60
         ? t("nachher_kurz") : t("nachher", { n: zahl(Math.round(b.abstand / 60)) })),
       satz: satz
@@ -243,12 +228,11 @@
     var gipfel = p ? Math.max.apply(null, p) : 0;
     for (var i = 0; i < stiele.length; i++) {
       var v = p ? p[i] : null;
-      // Wurzelskala: zieht ein einziger Eilzahler das 90. Perzentil hoch,
-      // waeren die unteren vier Balken unsichtbar - und gerade die sagen, ob
-      // man guenstig hineingekommen waere.
+      // Wurzelskala: zieht ein Eilzahler das 90. Perzentil hoch, waeren die
+      // unteren vier Balken unsichtbar - und gerade die sind die Auskunft.
       stiele[i].style.height = (gipfel > 0 && v !== null)
         ? Math.max(5, Math.sqrt(v / gipfel) * 100) + "%" : "0";
-      stiele[i].style.background = "var(--geb-" + stufe(v) + ")";
+      stiele[i].setAttribute("data-geb", stufe(v));
     }
   }
 
@@ -269,12 +253,6 @@
     versatz = d.jetzt - Date.now() / 1e3;
     if (d.bloecke && d.bloecke.length) { zeichneBloecke(d); }
     zeichneWarte(d.mempool);
-
-    var f = d.fenster || {};
-    zusammen.textContent = (!f.gemessen || f.txs_gesamt === null) ? "" : t("zusammen", {
-      b: zahl(f.gemessen), t: zahl(f.txs_gesamt),
-      m: f.abstand_schnitt === null ? STRICH : zahl(f.abstand_schnitt / 60, 1) });
-
     // Die Tafel folgt der Spitze, solange niemand einen anderen Block ansieht.
     if (gezeigt === null || !elemente[gezeigt]) {
       gezeigt = bekannt.length ? bekannt[bekannt.length - 1] : null;
@@ -295,16 +273,12 @@
     fetch(QUELLE, { cache: "no-store" }).then(function (a) {
       return a.ok ? a.json() : Promise.reject(a.status);
     }).then(function (d) {
-      laeuft = false;
-      schlecht = 0;
+      laeuft = false; schlecht = 0;
       wurzel.classList.toggle("kette-weg", !d.erreichbar);
-      zeichne(d);
-      planen(TAKT);
+      zeichne(d); planen(TAKT);
     }).catch(function () {
-      laeuft = false;
-      schlecht++;
-      // Erst der zweite Fehlschlag wird gemeldet - ein einzelner Aussetzer
-      // beim Abholen ist kein kaputter Knoten -, danach immer traeger fragen.
+      laeuft = false; schlecht++;
+      // Erst der zweite Fehlschlag zaehlt: ein Aussetzer ist kein Ausfall.
       if (schlecht > 1) { wurzel.classList.add("kette-weg"); }
       planen(Math.min(60000, TAKT * Math.pow(2, schlecht)));
     });

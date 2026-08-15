@@ -1,0 +1,227 @@
+/* Spielerische Kennzahlen.
+
+   Es werden AUSSCHLIESSLICH die Variablen aus satscope.css benutzt
+   (--grund, --flaeche, --tinte, --gedaempft, --linie, --akzent, --gut,
+   --schlecht). Keine festen Farben: was im hellen Thema huebsch aussieht,
+   ist im dunklen sonst unlesbar. Wo eine Flaeche zwischen Untergrund und
+   Akzent liegen soll, mischt color-mix aus den vorhandenen Variablen -
+   dieselbe Technik, die satscope.css schon fuer den Markenpunkt benutzt.
+
+   Alles Bewegte steht unter dem Vorbehalt von prefers-reduced-motion; ganz
+   unten wird es gesammelt abgeschaltet. */
+
+.spiel{margin-top:26px}
+.spiel-titel{
+  font-size:.78rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--gedaempft); margin:0 0 12px;
+}
+
+/* --- Die Ueberraschungszeile ------------------------------------------ */
+.spiel-ueberraschung{
+  display:flex; align-items:flex-start; gap:11px;
+  background:color-mix(in srgb, var(--akzent) 9%, var(--flaeche));
+  border:1px solid color-mix(in srgb, var(--akzent) 26%, var(--linie));
+  border-radius:12px; padding:13px 15px; margin-bottom:14px;
+}
+.spiel-wuerfel{font-size:1.3rem; line-height:1.25; color:var(--akzent); flex:none}
+.spiel-ueberraschung .spiel-satz{flex:1; margin:0; color:var(--tinte); font-size:.87rem}
+.spiel-noch{
+  flex:none; align-self:center; cursor:pointer; white-space:nowrap;
+  background:transparent; color:var(--akzent);
+  border:1px solid color-mix(in srgb, var(--akzent) 40%, transparent);
+  border-radius:7px; padding:4px 11px; font-size:.75rem; font-weight:600;
+  font-family:inherit;
+}
+.spiel-noch:hover{background:color-mix(in srgb, var(--akzent) 14%, transparent)}
+.spiel-noch:focus-visible{outline:2px solid var(--akzent); outline-offset:2px}
+/* Der Wechsel der Zeile ist ein kurzes Aufblenden - lang genug, um zu
+   bemerken, dass sich etwas geaendert hat, kurz genug, um nicht zu stoeren. */
+.spiel-wahrheit.ist-neu{animation:spiel-auf .42s ease-out}
+@keyframes spiel-auf{
+  from{opacity:0; transform:translateY(-4px)}
+  to{opacity:1; transform:none}
+}
+
+/* --- Karten ------------------------------------------------------------
+   .inhalt ist 560 px breit, also zwei Spalten. Unter 430 px faellt das
+   Gitter von allein auf eine Spalte zurueck - ohne Medienabfrage, weil
+   auto-fit mit minmax genau dafuer da ist. */
+.spiel-gitter{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+  gap:12px;
+}
+.spiel-karte{
+  background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:15px 17px; min-width:0;
+}
+.spiel-breit{grid-column:1 / -1}
+.spiel-kopf{
+  margin:0 0 9px; font-size:.74rem; font-weight:700; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--gedaempft);
+}
+.spiel-gross{
+  margin:0; font-size:1.72rem; font-weight:800; line-height:1.1;
+  letter-spacing:-.025em; color:var(--akzent);
+  font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+}
+.spiel-einheit{
+  margin:1px 0 0; font-size:.73rem; color:var(--gedaempft);
+  display:flex; align-items:center; gap:6px;
+}
+.spiel-satz{margin:9px 0 0; font-size:.78rem; color:var(--gedaempft); line-height:1.5}
+.spiel-urteil{color:var(--tinte); font-weight:600}
+.spiel-leise{opacity:.75; font-size:.73rem}
+/* Geschaetztes traegt eine gestrichelte Unterkante - man sieht auf einen
+   Blick, welche Zahl gemessen und welche gerechnet ist. */
+.spiel-geschaetzt{
+  border-bottom:1px dashed color-mix(in srgb, var(--gedaempft) 45%, transparent);
+  display:inline-block; padding-bottom:2px;
+}
+/* Innerhalb von .spiel gehalten: "ist-gut" ist ein zu allgemeiner Name, um
+   ihn global zu belegen - andere Bausteine liefern eigene Stylesheets. */
+.spiel .ist-gut{color:var(--gut)}
+.spiel .ist-schlecht{color:var(--schlecht)}
+
+/* --- Balken ------------------------------------------------------------ */
+.spiel-balken{
+  height:7px; border-radius:99px; margin-top:11px; overflow:hidden;
+  background:color-mix(in srgb, var(--gedaempft) 20%, transparent);
+}
+.spiel-balken > i{
+  display:block; height:100%; border-radius:99px;
+  background:linear-gradient(90deg,
+    color-mix(in srgb, var(--akzent) 55%, var(--flaeche)), var(--akzent));
+  transition:width .6s ease;
+}
+
+/* --- Schwierigkeit: Richtung ------------------------------------------- */
+.spiel-aenderung{
+  margin:11px 0 0; font-size:.82rem; font-weight:650; color:var(--tinte);
+}
+/* Der Pfeil steht vor dem Satz und ist bewusst neutral gefaerbt. */
+.spiel-aenderung.ist-hoch::before,
+.spiel-aenderung.ist-runter::before{
+  color:var(--akzent); font-weight:800; margin-right:5px;
+}
+.spiel-aenderung.ist-hoch::before{content:"\2191"}
+.spiel-aenderung.ist-runter::before{content:"\2193"}
+
+/* --- Gebuehren: Zifferblatt und Leiter --------------------------------- */
+.spiel-gebuehren{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+.spiel-uhr{
+  --groesse:104px;
+  position:relative; flex:none;
+  width:var(--groesse); height:var(--groesse); border-radius:50%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  /* Der Ring: gefuellter Teil bis zum Zeiger, Rest gedaempft. Der Zeiger
+     kommt aus spiel.py und sitzt logarithmisch (1 bis 1000 sat/vB).
+
+     from 225deg, dann 270 Grad Bogen: die Luecke liegt damit symmetrisch
+     unten (135deg bis 225deg), wie bei einem Tachometer. Mit from 180deg
+     saesse dieselbe Luecke schief in der rechten unteren Ecke. */
+  background:
+    radial-gradient(closest-side, var(--flaeche) 79%, transparent 80%),
+    conic-gradient(from 225deg,
+      var(--akzent) 0 calc(var(--zeiger, 0) * 0.75%),
+      color-mix(in srgb, var(--gedaempft) 22%, transparent)
+        calc(var(--zeiger, 0) * 0.75%) 75%,
+      transparent 75% 100%);
+}
+.spiel-uhr.ist-leer{--zeiger:0}
+.spiel-uhr-wert{
+  font-size:1.18rem; font-weight:800; color:var(--akzent);
+  font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; line-height:1.1;
+}
+.spiel-uhr-einheit{font-size:.62rem; color:var(--gedaempft); margin-top:2px}
+
+.spiel-leiter{list-style:none; margin:0; padding:0; flex:1; min-width:160px}
+.spiel-stufe{
+  display:grid; grid-template-columns:5.6em 1fr 3.6em;
+  align-items:center; gap:8px; padding:3px 0;
+}
+.spiel-stufe-name{font-size:.71rem; color:var(--gedaempft)}
+.spiel-stufe-bahn{
+  height:6px; border-radius:99px; overflow:hidden;
+  background:color-mix(in srgb, var(--gedaempft) 18%, transparent);
+}
+.spiel-stufe-bahn > i{
+  display:block; height:100%; border-radius:99px; background:var(--akzent);
+  transition:width .6s ease;
+}
+/* Je geduldiger das Ziel, desto blasser der Balken - die Reihe liest sich
+   dann als Gefaelle, nicht als vier gleichwertige Zahlen. */
+.spiel-stufe:nth-child(2) > .spiel-stufe-bahn > i{opacity:.8}
+.spiel-stufe:nth-child(3) > .spiel-stufe-bahn > i{opacity:.62}
+.spiel-stufe:nth-child(4) > .spiel-stufe-bahn > i{opacity:.46}
+.spiel-stufe-wert{
+  font-size:.76rem; text-align:right; color:var(--tinte);
+  font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+}
+
+/* --- Ticker ------------------------------------------------------------ */
+.spiel-zaehler{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(112px, 1fr));
+  gap:13px;
+}
+.spiel-zelle{min-width:0}
+/* Kleiner als die Zahlen der uebrigen Karten: hier stehen vier Werte
+   nebeneinander, und "453,125" bei 1,72rem sprengt eine 112-px-Spalte. */
+.spiel-ticker .spiel-gross{font-size:1.3rem}
+.spiel-stoppuhr{letter-spacing:-.01em}
+/* Der Herzschlag neben der Stoppuhr: das einzige, was ohne Zutun blinkt. */
+.spiel-puls{
+  width:6px; height:6px; border-radius:50%; background:var(--akzent);
+  flex:none; animation:spiel-schlag 2s ease-in-out infinite;
+}
+@keyframes spiel-schlag{
+  0%,100%{opacity:1; transform:scale(1)}
+  50%{opacity:.35; transform:scale(.75)}
+}
+.spiel-warn{
+  display:block; margin-top:4px; font-size:.7rem; color:var(--schlecht);
+}
+/* Ein neuer Block ist die einzige Nachricht, die sich aufdraengen darf. */
+.spiel-ticker.ist-neuer-block{
+  border-color:var(--akzent);
+  animation:spiel-blitz 1.6s ease-out;
+}
+@keyframes spiel-blitz{
+  0%{background:color-mix(in srgb, var(--akzent) 16%, var(--flaeche))}
+  100%{background:var(--flaeche)}
+}
+.spiel-marke{
+  display:inline-block; margin-left:8px; padding:1px 7px; border-radius:99px;
+  font-size:.65rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  background:var(--akzent); color:var(--grund);
+}
+
+/* --- Warteschlange als Klotzstapel ------------------------------------- */
+.spiel-stapel{display:flex; align-items:flex-end; gap:3px; margin-top:12px; height:26px}
+.spiel-klotz{
+  width:15px; height:22px; border-radius:3px; background:var(--akzent);
+  opacity:.85; flex:none;
+}
+/* Der angebrochene Block wird nur anteilig gefuellt - der Rest bleibt als
+   Umriss stehen, damit man sieht, dass er angefangen ist. */
+.spiel-rest{
+  background:linear-gradient(to top,
+    var(--akzent) 0 var(--anteil, 0%),
+    color-mix(in srgb, var(--gedaempft) 20%, transparent) var(--anteil, 0%) 100%);
+  opacity:.85;
+}
+.spiel-mehr{
+  font-size:.72rem; color:var(--gedaempft); align-self:center; margin-left:4px;
+  font-variant-numeric:tabular-nums;
+}
+
+/* --- Bewegung ist eine Zugabe, kein Bestandteil ------------------------ */
+@media (prefers-reduced-motion: reduce){
+  .spiel-puls{animation:none}
+  .spiel-wahrheit.ist-neu{animation:none}
+  .spiel-ticker.ist-neuer-block{animation:none}
+  .spiel-balken > i,
+  .spiel-stufe-bahn > i{transition:none}
+}

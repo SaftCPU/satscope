@@ -5,11 +5,11 @@
    bleibt stehen. Keine Karte verschwindet wegen eines fehlenden Wertes.
 
    Alles, was sich bewegt, ist eine Zugabe: ohne JavaScript zeigt die Seite
-   den Stand vom Laden, und zwar vollstaendig. Deshalb tragen die Zaehler ihre
-   Startwerte als Text, nicht als leere Huelsen.
+   den Stand vom Laden, und zwar vollstaendig. Deshalb tragen die Zaehler
+   ihre Startwerte als Text, nicht als leere Huelsen.
 
    Zwei Regeln beim Rechnen in dieser Datei:
-   * Prozente fuer CSS mit |round, NIEMALS mit t.zahl - im Deutschen waere
+   * Prozente fuer CSS mit |round, NIEMALS mit t.zahl - im Deutschen stuende
      dort ein Komma, und "width:42,3%" ist fuer den Browser Unsinn.
    * Zahlen fuer Menschen ausschliesslich ueber t.zahl. #}
 
@@ -20,24 +20,24 @@
 
   {# --- Sag mir etwas Ueberraschendes -----------------------------------
        Die Zeilen sind fertig gesetzt; das Skript blaettert nur. Die Liste
-       haengt an einem Attribut mit EINFACHEN Anfuehrungszeichen - tojson
-       schuetzt < > & ' , nicht aber das doppelte Anfuehrungszeichen. #}
+       haengt an einem Attribut mit EINFACHEN Anfuehrungszeichen: tojson
+       schuetzt < > & und ' , nicht aber das doppelte Anfuehrungszeichen. #}
   {% if s.ueberraschungen %}
   <div class="spiel-ueberraschung" data-spiel-liste='{{ s.ueberraschungen|tojson }}'>
     <span class="spiel-wuerfel" aria-hidden="true">⚄</span>
-    <p class="spiel-satz" data-spiel="ueberraschung" aria-live="polite">{{ s.ueberraschungen[0] }}</p>
-    {# Ohne Skript hat der Knopf nichts zu tun, also gibt es ihn dann nicht. #}
+    <p class="spiel-satz spiel-wahrheit" data-spiel="ueberraschung" aria-live="polite">{{ s.ueberraschungen[0] }}</p>
+    {# Ohne Skript haette der Knopf nichts zu tun, also gibt es ihn dann nicht. #}
     <button type="button" class="spiel-noch" data-spiel="noch" hidden>{{ t.t("spiel.more") }}</button>
   </div>
   {% endif %}
 
   <div class="spiel-gitter">
 
-    {# --- Halbierung ------------------------------------------------- #}
+    {# --- Halbierung --------------------------------------------------- #}
     <article class="spiel-karte">
       <h3 class="spiel-kopf">{{ t.t("spiel.halving.title") }}</h3>
       <p class="spiel-gross" data-spiel="halbierung-rest">
-        {{ t.zahl(s.halbierung.verbleibend) if s.halbierung.verbleibend is not none else fehlt }}
+        {{- t.zahl(s.halbierung.verbleibend) if s.halbierung.verbleibend is not none else fehlt -}}
       </p>
       <p class="spiel-einheit">{{ t.t("spiel.halving.blocks") }}</p>
 
@@ -47,15 +47,22 @@
       </div>
       {% endif %}
 
+      {% if s.halbierung.hoehe is not none %}
       <p class="spiel-satz">
-        {% if s.halbierung.hoehe is not none %}{{ t.t("spiel.halving.at", h=t.zahl(s.halbierung.hoehe)) }} ·{% endif %}
-        {% if s.halbierung.epoche is not none %}{{ t.t("spiel.halving.epoch", n=t.zahl(s.halbierung.epoche + 1)) }}{% endif %}
-      </p>
-      {% if s.halbierung.sekunden %}
-      <p class="spiel-satz spiel-geschaetzt" title="{{ t.t('spiel.estimated') }}">
-        <span data-spiel="halbierung-tage">{{ t.t("spiel.halving.eta", n=t.zahl(s.halbierung.sekunden / 86400, 0)) }}</span><span data-spiel-datum="{{ s.halbierung.zeitpunkt }}"></span>
+        {{ t.t("spiel.halving.at", h=t.zahl(s.halbierung.hoehe)) }}
+        {%- if s.halbierung.epoche is not none %} · {{ t.t("spiel.halving.epoch", n=t.zahl(s.halbierung.epoche + 1)) }}{% endif %}
       </p>
       {% endif %}
+
+      {# Die Dauer steht serverseitig da, das genaue Datum haengt spiel.js an -
+         nur der Browser kennt die Zeitzone des Lesers. Ohne Skript fehlt das
+         Datum, aber der Satz steht trotzdem vollstaendig. #}
+      {% if s.halbierung.eta_schluessel %}
+      <p class="spiel-satz spiel-geschaetzt" title="{{ t.t('spiel.estimated') }}">
+        {{ t.t(s.halbierung.eta_schluessel, n=t.zahl(s.halbierung.eta_wert, 0)) }}<span data-spiel-datum="{{ s.halbierung.zeitpunkt }}"></span>
+      </p>
+      {% endif %}
+
       {% if s.halbierung.subvention_sat is not none and s.halbierung.naechste_sat is not none %}
       <p class="spiel-satz">{{ t.t("spiel.halving.reward",
             btc=t.zahl(s.halbierung.subvention_sat / 100000000, 3),
@@ -63,11 +70,11 @@
       {% endif %}
     </article>
 
-    {# --- Schwierigkeitsanpassung ------------------------------------ #}
+    {# --- Schwierigkeitsanpassung -------------------------------------- #}
     <article class="spiel-karte">
       <h3 class="spiel-kopf">{{ t.t("spiel.retarget.title") }}</h3>
       <p class="spiel-gross" data-spiel="anpassung-rest">
-        {{ t.zahl(s.anpassung.verbleibend) if s.anpassung.verbleibend is not none else fehlt }}
+        {{- t.zahl(s.anpassung.verbleibend) if s.anpassung.verbleibend is not none else fehlt -}}
       </p>
       <p class="spiel-einheit">{{ t.t("spiel.retarget.blocks") }}</p>
 
@@ -77,45 +84,43 @@
       </div>
       {% endif %}
 
-      {# Die geschaetzte Aenderung. Richtung als Pfeil, aber bewusst OHNE
-         gruen/rot: steigende Schwierigkeit ist weder gut noch schlecht,
-         sondern der Regelkreis bei der Arbeit. #}
-      <p class="spiel-aenderung {{ 'ist-' ~ s.anpassung_richtung if s.anpassung_richtung }}">
-        {% if s.anpassung.aenderung_p is none %}{{ t.t("spiel.retarget.unknown") }}
-        {% elif s.anpassung_richtung == "hoch" %}{{ t.t("spiel.retarget.up", p=t.zahl(s.anpassung.aenderung_p, 2)) }}
-        {% elif s.anpassung_richtung == "runter" %}{{ t.t("spiel.retarget.down", p=t.zahl(-s.anpassung.aenderung_p, 2)) }}
-        {% else %}{{ t.t("spiel.retarget.flat") }}{% endif %}
+      {# Richtung als Pfeil, aber bewusst OHNE gruen/rot: eine steigende
+         Schwierigkeit ist weder gut noch schlecht, sondern der Regelkreis
+         bei der Arbeit. #}
+      <p class="spiel-aenderung{{ ' ist-' ~ s.anpassung_richtung if s.anpassung_richtung }}">
+        {%- if s.anpassung.aenderung_p is none %}{{ t.t("spiel.retarget.unknown") }}
+        {%- elif s.anpassung_richtung == "hoch" %}{{ t.t("spiel.retarget.up", p=t.zahl(s.anpassung.aenderung_p, 2)) }}
+        {%- elif s.anpassung_richtung == "runter" %}{{ t.t("spiel.retarget.down", p=t.zahl(-s.anpassung.aenderung_p, 2)) }}
+        {%- else %}{{ t.t("spiel.retarget.flat") }}{% endif -%}
       </p>
+
       {% if s.anpassung.takt_s %}
       <p class="spiel-satz">{{ t.t("spiel.retarget.pace", min=t.zahl(s.anpassung.takt_s / 60, 2)) }}</p>
       {% endif %}
       {% if s.tempo_schluessel %}
-      <p class="spiel-satz {{ 'ist-' ~ s.tempo_klasse if s.tempo_klasse }}">{{ t.t(s.tempo_schluessel) }}</p>
+      <p class="spiel-satz{{ ' ist-' ~ s.tempo_klasse if s.tempo_klasse }}">{{ t.t(s.tempo_schluessel) }}</p>
       {% endif %}
-      {% if s.anpassung.zeitpunkt %}
+      {% if s.anpassung.eta_schluessel %}
       <p class="spiel-satz spiel-geschaetzt" title="{{ t.t('spiel.estimated') }}">
-        <span data-spiel-datum="{{ s.anpassung.zeitpunkt }}"></span>
+        {{ t.t(s.anpassung.eta_schluessel, n=t.zahl(s.anpassung.eta_wert, 1)) }}<span data-spiel-datum="{{ s.anpassung.zeitpunkt }}"></span>
       </p>
       {% endif %}
     </article>
 
-    {# --- Gebuehren --------------------------------------------------- #}
+    {# --- Gebuehren ---------------------------------------------------- #}
     <article class="spiel-karte spiel-breit">
       <h3 class="spiel-kopf">{{ t.t("spiel.fee.title") }}</h3>
 
       <div class="spiel-gebuehren">
-        {# Das Zifferblatt: der Zeiger sitzt logarithmisch, damit der Bereich
-           1-10 sat/vB nicht zu einem Strich zusammenfaellt. #}
-        <div class="spiel-uhr" aria-hidden="true"
-             style="--zeiger:{{ (s.gebuehr_zeiger_p|round(1)) if s.gebuehr_zeiger_p is not none else 0 }}">
-          <div class="spiel-uhr-mitte">
-            <span class="spiel-uhr-wert">
-              {%- for g in s.gebuehren if g.ziel == 1 -%}
-                {{ t.zahl(g.sat_vb, 2) if g.sat_vb else fehlt }}
-              {%- endfor -%}
-            </span>
-            <span class="spiel-uhr-einheit">{{ t.t("spiel.fee.unit") }}</span>
-          </div>
+        {# Das Zifferblatt. Der Zeiger sitzt logarithmisch, sonst faellt der
+           Bereich 1-10 sat/vB zu einem Strich zusammen - und genau dort
+           spielt sich der Alltag ab. #}
+        <div class="spiel-uhr{{ ' ist-leer' if s.gebuehr_zeiger_p is none }}" aria-hidden="true"
+             style="--zeiger:{{ s.gebuehr_zeiger_p|round(1) if s.gebuehr_zeiger_p is not none else 0 }}">
+          <span class="spiel-uhr-wert">
+            {{- t.zahl(s.gebuehr_naechster.sat_vb, 2) if s.gebuehr_naechster.sat_vb else fehlt -}}
+          </span>
+          <span class="spiel-uhr-einheit">{{ t.t("spiel.fee.unit") }}</span>
         </div>
 
         <ul class="spiel-leiter">
@@ -126,7 +131,7 @@
               <i style="width:{{ g.anteil_p|round(1) if g.anteil_p else 0 }}%"></i>
             </span>
             <span class="spiel-stufe-wert">
-              {%- if g.sat_vb -%}{{ t.zahl(g.sat_vb, 2) }}{%- else -%}{{ fehlt }}{%- endif -%}
+              {{- t.zahl(g.sat_vb, 2) if g.sat_vb else fehlt -}}
             </span>
           </li>
           {% endfor %}
@@ -138,9 +143,10 @@
       {% endif %}
 
       {# Aus sat/vB wird ein Betrag, den man sich vorstellen kann. #}
-      {% for g in s.gebuehren if g.ziel == 1 and g.kosten_sat %}
-      <p class="spiel-satz">{{ t.t("spiel.fee.typical", vb=t.zahl(141), n=t.zahl(g.kosten_sat)) }}</p>
-      {% endfor %}
+      {% if s.gebuehr_naechster.kosten_sat %}
+      <p class="spiel-satz">{{ t.t("spiel.fee.typical", vb=t.zahl(s.typisch_vb),
+                                   n=t.zahl(s.gebuehr_naechster.kosten_sat)) }}</p>
+      {% endif %}
       {% if s.sparen_p %}
       <p class="spiel-satz">{{ t.t("spiel.fee.save", p=t.zahl(s.sparen_p, 0)) }}</p>
       {% endif %}
@@ -153,56 +159,55 @@
         {%- else %}{{ t.t("spiel.fee.discount", p=t.zahl(-s.aufschlag_p, 0)) }}{% endif -%}
       </p>
       {% endif %}
-      {% if s.mempool_min_sat_vb and s.mempool_min_sat_vb > 0.00001 %}
-      <p class="spiel-satz spiel-leise">{{ t.t("spiel.fee.floor", n=t.zahl(s.mempool_min_sat_vb, 3)) }}</p>
+      {# Nur eine Nachricht, wenn der Knoten wirklich ueber der ueblichen
+         Grenze von 1 sat/vB liegt; die Toleranz sitzt in spiel.py. #}
+      {% if s.mempool_grenze %}
+      <p class="spiel-satz spiel-leise">{{ t.t("spiel.fee.floor", n=t.zahl(s.mempool_grenze, 2)) }}</p>
       {% endif %}
     </article>
 
-    {# --- Der Ticker --------------------------------------------------
+    {# --- Der Ticker ---------------------------------------------------
          Die Startwerte stehen als Text da; das Skript zaehlt von dort
-         weiter. Ohne Skript ist die Karte kein leeres Geruest, sondern eine
-         Momentaufnahme. #}
+         weiter. Alle Rohwerte fuer das Skript haengen an dieser Karte. #}
     <article class="spiel-karte spiel-breit spiel-ticker"
              data-spiel-tick="1"
-             data-spiel-block-zeit="{{ s.block_zeit or '' }}"
+             data-spiel-block-zeit="{{ s.block_zeit if s.block_zeit is not none else '' }}"
              data-spiel-hoehe="{{ s.hoehe if s.hoehe is not none else '' }}"
-             data-spiel-txrate="{{ (s.tx_rate|round(4)) if s.tx_rate else '' }}"
+             data-spiel-txrate="{{ s.tx_rate|round(4) if s.tx_rate else '' }}"
              data-spiel-heute-sat="{{ s.heute.subvention_sat if s.heute.subvention_sat is not none else '' }}"
              data-spiel-heute-bloecke="{{ s.heute.bloecke if s.heute.bloecke is not none else '' }}"
+             data-spiel-subvention="{{ s.halbierung.subvention_sat if s.halbierung.subvention_sat is not none else '' }}"
              data-spiel-ueberfaellig="{{ t.t('spiel.ticker.overdue') }}"
              data-spiel-neuer-block="{{ t.t('spiel.ticker.newblock') }}">
       <h3 class="spiel-kopf">{{ t.t("spiel.ticker.title") }}</h3>
 
       <div class="spiel-zaehler">
         <div class="spiel-zelle">
-          <span class="spiel-punkt" aria-hidden="true"></span>
-          <span class="spiel-gross spiel-uhrzeit" data-spiel="seit">
-            {%- if s.block_zeit -%}{{ dauer(None if s.block_zeit is none else (s.block_zeit and 0)) if false }}{%- endif -%}
-            {{ t.t("value.missing") if not s.block_zeit }}
+          <span class="spiel-gross spiel-stoppuhr" data-spiel="seit">{{ s.uhr or fehlt }}</span>
+          <span class="spiel-einheit">
+            <span class="spiel-puls" aria-hidden="true"></span>
+            {{ t.t("spiel.ticker.elapsed") }}
           </span>
-          <span class="spiel-einheit">{{ t.t("spiel.ticker.elapsed") }}</span>
           <span class="spiel-warn" data-spiel="ueberfaellig" hidden></span>
         </div>
 
         <div class="spiel-zelle">
           <span class="spiel-gross" data-spiel="txseit">
-            {%- if s.tx_rate -%}≈ 0{%- else -%}{{ fehlt }}{%- endif -%}
+            {{- ("≈ " ~ t.zahl(0)) if s.tx_rate else fehlt -}}
           </span>
           <span class="spiel-einheit">{{ t.t("spiel.ticker.txs") }}</span>
         </div>
 
         <div class="spiel-zelle">
           <span class="spiel-gross" data-spiel="heute-btc">
-            {%- if s.heute.subvention_sat is not none -%}
-              {{ t.zahl(s.heute.subvention_sat / 100000000, 3) }}
-            {%- else -%}{{ fehlt }}{%- endif -%}
+            {{- t.zahl(s.heute.subvention_sat / 100000000, 3) if s.heute.subvention_sat is not none else fehlt -}}
           </span>
           <span class="spiel-einheit">{{ t.t("spiel.ticker.today") }}</span>
         </div>
 
         <div class="spiel-zelle">
           <span class="spiel-gross" data-spiel="heute-bloecke">
-            {{ t.zahl(s.heute.bloecke) if s.heute.bloecke is not none else fehlt }}
+            {{- t.zahl(s.heute.bloecke) if s.heute.bloecke is not none else fehlt -}}
           </span>
           <span class="spiel-einheit">{{ t.t("spiel.ticker.blocks") }}</span>
         </div>
@@ -213,25 +218,23 @@
       {% endif %}
     </article>
 
-    {# --- Die Warteschlange ------------------------------------------- #}
+    {# --- Die Warteschlange -------------------------------------------- #}
     <article class="spiel-karte spiel-breit">
       <h3 class="spiel-kopf">{{ t.t("spiel.mempool.title") }}</h3>
-      <p class="spiel-gross">
-        {%- if s.mempool.bloecke is not none -%}
-          {{ t.zahl(s.mempool.bloecke, 1) }}
-        {%- else -%}{{ fehlt }}{%- endif -%}
+      <p class="spiel-gross" data-spiel="mempool-bloecke">
+        {{- t.zahl(s.mempool.bloecke, 1) if s.mempool.bloecke is not none else fehlt -}}
       </p>
-      <p class="spiel-einheit">{{ t.t("spiel.mempool.deep", n="") | trim }}</p>
+      <p class="spiel-einheit">{{ t.t("spiel.mempool.unit") }}</p>
 
-      {# Ein Bild aus Bloecken: jeder Kasten ist ein voller Block Rueckstau,
-         der letzte zeigt den Rest. Mehr als zwoelf zu zeichnen sagt nichts
-         mehr - dann steht die Zahl fuer sich. #}
+      {# Ein Bild aus Bloecken: jeder Klotz ist ein voller Block Rueckstau,
+         der letzte zeigt den angebrochenen Rest. Mehr als zwoelf zu zeichnen
+         sagt nichts mehr - ab da spricht die Zahl fuer sich. #}
       {% if s.mempool.bloecke is not none %}
+      {% set voll = s.mempool.bloecke|int %}
       <div class="spiel-stapel" aria-hidden="true">
-        {% set voll = (s.mempool.bloecke|int) %}
         {% for i in range([voll, 12]|min) %}<i class="spiel-klotz"></i>{% endfor %}
-        {% if voll < 12 %}<i class="spiel-klotz spiel-klotz-rest"
-             style="--anteil:{{ ((s.mempool.bloecke - voll) * 100)|round(0) }}%"></i>{% endif %}
+        {% if voll < 12 %}<i class="spiel-klotz spiel-rest"
+          style="--anteil:{{ ((s.mempool.bloecke - voll) * 100)|round(0) }}%"></i>{% endif %}
         {% if voll > 12 %}<span class="spiel-mehr">+{{ t.zahl(voll - 12) }}</span>{% endif %}
       </div>
       {% endif %}
@@ -239,11 +242,19 @@
       {% if s.andrang_schluessel %}
       <p class="spiel-satz spiel-urteil">{{ t.t(s.andrang_schluessel) }}</p>
       {% endif %}
+      {# Die Vorlage wandert mit: spiel.js ersetzt darin nur {n} und baut
+         keinen Satz selbst zusammen. Der Katalog bleibt die einzige Quelle
+         der Woerter - auch fuer die Zeile, die sich spaeter noch aendert. #}
       {% if s.mempool.anzahl is not none %}
-      <p class="spiel-satz" data-spiel="mempool-anzahl">{{ t.t("spiel.mempool.count", n=t.zahl(s.mempool.anzahl)) }}</p>
+      <p class="spiel-satz" data-spiel="mempool-anzahl"
+         data-spiel-vorlage="{{ t.t('spiel.mempool.count', n='{n}') }}">
+        {{- t.t("spiel.mempool.count", n=t.zahl(s.mempool.anzahl)) -}}
+      </p>
       {% endif %}
       {% if s.mempool.leerlauf_s and s.mempool.leerlauf_s >= 3600 %}
-      <p class="spiel-satz spiel-geschaetzt" title="{{ t.t('spiel.estimated') }}">{{ t.t("spiel.mempool.drain", n=t.zahl(s.mempool.leerlauf_s / 3600, 1)) }}</p>
+      <p class="spiel-satz spiel-geschaetzt" title="{{ t.t('spiel.estimated') }}">
+        {{- t.t("spiel.mempool.drain", n=t.zahl(s.mempool.leerlauf_s / 3600, 1)) -}}
+      </p>
       {% endif %}
     </article>
 

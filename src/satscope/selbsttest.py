@@ -45,6 +45,12 @@ def main():
     pruefe("deutscher Satz", de.t("block.cdd", cdd="2.542"),
            "Dieser Block hat 2.542 Coin-Tage vernichtet.")
 
+    print("\nroh(): Vorlage MIT Platzhaltern fuer das JavaScript")
+    pruefe("Vorlage bleibt unveraendert", de.roh("block.cdd"),
+           "Dieser Block hat {cdd} Coin-Tage vernichtet.")
+    pruefe("unbekannter Schluessel faellt auf", en.roh("gibt.es.nicht"),
+           "!gibt.es.nicht!")
+
     print("\nLuecken fallen auf, statt still zu sein")
     pruefe("unbekannter Schluessel", en.t("gibt.es.nicht"), "!gibt.es.nicht!")
     pruefe("fehlender Platzhalter",
@@ -69,7 +75,7 @@ def main():
     except NichtErlaubt:
         print("  ok      teurer Aufruf abgewiesen")
 
-    print("\n%d Pruefungen, %d Fehler" % (18, len(FEHLER)))
+    print("\n%d Pruefungen, %d Fehler" % (20, len(FEHLER)))
     for f in FEHLER:
         print("  " + f)
     return 1 if FEHLER else 0

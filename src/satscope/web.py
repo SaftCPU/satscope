@@ -12,7 +12,7 @@ import asyncio
 import os
 
 from . import (adresse, blockseite, elektrum, kette, knoten, knotenseite,
-               lage, tiefenkarte, txseite)
+               lage, spiel, tiefenkarte, txseite)
 from .rpc import BILLIG, Tor
 from .sprache import COOKIE, COOKIE_ALTER, SPRACHEN, Texte, sprache_aus_cookies
 
@@ -62,6 +62,11 @@ def erzeuge_app():
         # ueber Electrum. Zusammen gemessen unter 60 ms.
         z, hist = await asyncio.gather(knoten.zustand(TOR),
                                        tiefenkarte.histogramm())
+        # Die spielerischen Kennzahlen bekommen den bereits erhobenen Zustand
+        # mit, statt ihn ein zweites Mal zu holen - sonst zahlt der Knoten
+        # jeden Wert doppelt. fuer_seite ist asynchron und macht die Erhebung
+        # selbst; ein zusaetzliches erhebe() waere genau die Doppelabfrage.
+        s = await spiel.fuer_seite(TOR, t, z)
         satz, art = lage.lage(z, t)
         return vorlagen.TemplateResponse(request, "start.html", {
             "t": t,
@@ -71,6 +76,7 @@ def erzeuge_app():
             "satz": satz,
             "lage_art": art,
             "karte": tiefenkarte.karte(hist),
+            "s": s,
         })
 
     def _btc_lokal(sat, t):

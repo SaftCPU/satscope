@@ -1,0 +1,180 @@
+/* Das Live-Band der Bloecke.
+   Alle Grundfarben kommen aus satscope.css (--grund, --flaeche, --tinte,
+   --gedaempft, --linie, --akzent, --gut, --schlecht). Eigene Farben gibt es
+   nur fuer die Gebuehrenskala - und die ist genauso dreifach gesetzt wie dort:
+   heller Grundfall, dunkel per prefers-color-scheme, dunkel per data-theme.
+   Sonst waere ein Block im dunklen Fenster gruen auf gruen. */
+:root{
+  --geb-0:#15803d; --geb-1:#4d7c0f; --geb-2:#a16207;
+  --geb-3:#c2410c; --geb-4:#b91c1c; --geb-5:#86198f;
+  --kb-breite:112px; --kb-luecke:8px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --geb-0:#4ade80; --geb-1:#a3e635; --geb-2:#fbbf24;
+    --geb-3:#fb923c; --geb-4:#f87171; --geb-5:#e879f9;
+  }
+}
+:root[data-theme="dark"]{
+  --geb-0:#4ade80; --geb-1:#a3e635; --geb-2:#fbbf24;
+  --geb-3:#fb923c; --geb-4:#f87171; --geb-5:#e879f9;
+}
+
+.kette{margin:0 0 26px}
+.kette-kopf{display:flex; align-items:center; justify-content:space-between;
+  gap:12px; margin-bottom:8px}
+.kette-titel{font-size:.8rem; font-weight:600; letter-spacing:.03em; margin:0}
+.kette-legende{display:flex; align-items:center; gap:6px;
+  font-size:.68rem; color:var(--gedaempft)}
+.kl-streifen{width:78px; height:6px; border-radius:3px;
+  background:linear-gradient(90deg,var(--geb-0),var(--geb-1),var(--geb-2),
+    var(--geb-3),var(--geb-4),var(--geb-5))}
+
+.kette-band{display:flex; align-items:stretch; gap:var(--kb-luecke)}
+/* Der Rahmen rollt, wenn zwoelf Bloecke nicht nebeneinander passen. Er ist
+   auch der Grund, warum die Einzelheiten UNTER dem Band stehen: overflow-x
+   schneidet jede Sprechblase ab, die aus ihm herausragt. Das Innenmass laesst
+   dem Aufleuchten des neuen Blocks Platz, sonst wuerde es abgeschnitten. */
+.kette-rahmen{flex:1; min-width:0; overflow-x:auto; overflow-y:hidden;
+  scrollbar-width:thin; padding:7px 2px}
+.kette-reihe{display:flex; align-items:stretch; width:max-content}
+
+/* --- ein Kaestchen ------------------------------------------------------ */
+.kb{
+  position:relative; flex:0 0 var(--kb-breite); min-width:0; min-height:134px;
+  overflow:hidden; display:flex; flex-direction:column; gap:1px;
+  padding:9px 10px 12px; border-radius:11px;
+  border:1px solid var(--linie); border-top:3px solid var(--geb,var(--linie));
+  /* Die Faerbung ist ein Hauch der Gebuehrenfarbe ueber der normalen Flaeche,
+     nicht die Vollfarbe: sonst muesste die Schrift mitwechseln und waere in
+     einem der beiden Themes unlesbar. */
+  background:linear-gradient(180deg,
+    color-mix(in srgb, var(--geb,var(--linie)) 20%, var(--flaeche)),
+    var(--flaeche) 78%);
+  color:inherit; text-decoration:none;
+  transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.kb + .kb{margin-left:var(--kb-luecke)}
+.kb[href]{cursor:pointer}
+.kb[href]:hover{transform:translateY(-2px)}
+.kb:hover,.kb:focus-visible{border-color:var(--geb,var(--akzent))}
+.kb:focus-visible{outline:2px solid var(--akzent); outline-offset:2px}
+.kb-aktiv{box-shadow:inset 0 0 0 1px var(--geb,var(--akzent))}
+.kb-platz{opacity:.4}
+.kb[data-geb="0"]{--geb:var(--geb-0)} .kb[data-geb="1"]{--geb:var(--geb-1)}
+.kb[data-geb="2"]{--geb:var(--geb-2)} .kb[data-geb="3"]{--geb:var(--geb-3)}
+.kb[data-geb="4"]{--geb:var(--geb-4)} .kb[data-geb="5"]{--geb:var(--geb-5)}
+
+.kb-kopf{font-size:.72rem; font-weight:700; letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums; color:var(--gedaempft)}
+/* Die grosse farbige Zahl ist in JEDEM Kaestchen ein Preis in sat/vB - beim
+   wartenden Block der, den man jetzt zahlen muesste. Nur so vergleicht das
+   Auge ueber das ganze Band hinweg dasselbe. */
+.kb-gross{font-size:1.05rem; font-weight:750; line-height:1.3;
+  color:var(--geb,var(--tinte)); font-variant-numeric:tabular-nums}
+.kb-mittel{font-size:.68rem; color:var(--gedaempft);
+  font-variant-numeric:tabular-nums}
+.kb-klein{font-size:.66rem; color:var(--gedaempft); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.kb-alter{margin-top:auto; padding-top:4px; font-weight:600; color:var(--tinte)}
+.kb-abzeichen{position:absolute; top:6px; right:8px; font-size:.7rem;
+  line-height:1; color:var(--geb,var(--gedaempft))}
+
+/* Wie voll der Block war, in Gewichtseinheiten. Ein Strich statt einer Zahl:
+   den Vergleich zwischen zwoelf Bloecken sieht das Auge schneller, als es
+   zwoelf Prozentzahlen lesen kann. */
+.kb-balken{display:block; height:3px; margin-top:6px; border-radius:2px;
+  background:color-mix(in srgb, var(--linie) 70%, transparent)}
+.kb-balken i{display:block; height:100%; width:0; border-radius:2px;
+  background:var(--geb,var(--gedaempft)); transition:width .5s ease}
+
+/* --- der wartende Block ------------------------------------------------- */
+.kb-warte{flex:0 0 128px; margin:7px 0; border-style:dashed;
+  border-top-style:solid; background:var(--flaeche)}
+.kb-fuell{position:absolute; inset:0; display:block; pointer-events:none}
+/* Der Fuellstand steigt von unten. Gedeckelt bei einem Block Arbeit - was
+   darueber hinaus wartet, steht als Zahl daneben. */
+.kb-fuell i{position:absolute; left:0; right:0; bottom:0; height:0;
+  background:linear-gradient(180deg,
+    color-mix(in srgb, var(--geb,var(--akzent)) 26%, transparent),
+    color-mix(in srgb, var(--geb,var(--akzent)) 12%, transparent));
+  transition:height 1.2s cubic-bezier(.2,.8,.2,1)}
+.kb-warte > :not(.kb-fuell){position:relative}
+/* Die weiteren Ziele duerfen umbrechen - abgeschnitten waere die zweite
+   Schaetzung schlimmer als eine Zeile mehr. */
+.kw-mehr{opacity:.8; white-space:normal; line-height:1.35}
+
+/* --- die Tafel unter dem Band ------------------------------------------- */
+.kette-tafel{margin-top:12px; padding:12px 16px 14px; border-radius:12px;
+  background:var(--flaeche); border:1px solid var(--linie);
+  border-left:3px solid var(--geb,var(--akzent))}
+.kette-tafel[data-geb="0"]{--geb:var(--geb-0)}
+.kette-tafel[data-geb="1"]{--geb:var(--geb-1)}
+.kette-tafel[data-geb="2"]{--geb:var(--geb-2)}
+.kette-tafel[data-geb="3"]{--geb:var(--geb-3)}
+.kette-tafel[data-geb="4"]{--geb:var(--geb-4)}
+.kette-tafel[data-geb="5"]{--geb:var(--geb-5)}
+.kt-kopf{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.kt-marke{font-size:.72rem; color:var(--gedaempft)}
+.kt-hoehe{font-size:1.15rem; font-weight:750; font-variant-numeric:tabular-nums}
+.kt-hash{font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.7rem;
+  color:var(--gedaempft); word-break:break-all}
+/* Der Satz ist der eigentliche Zweck der Tafel: die Zahl steht im Kaestchen,
+   hier steht, ob sie ungewoehnlich ist. */
+.kt-satz{margin:4px 0 10px; font-size:.74rem; color:var(--gedaempft);
+  min-height:1.1em}
+.kt-gitter{display:flex; flex-wrap:wrap; gap:10px 22px; align-items:flex-end}
+.kt-p{display:flex; flex-direction:column; gap:1px}
+.kt-p b{font-size:.9rem; font-weight:650; font-variant-numeric:tabular-nums}
+.kt-p i{font-style:normal; font-size:.7rem; color:var(--gedaempft);
+  min-height:.9em}
+.kt-perzentile{flex-direction:row; align-items:flex-end; gap:3px; height:30px;
+  margin-left:auto}
+.kt-perzentile i{width:9px; min-height:2px; border-radius:2px 2px 0 0;
+  background:var(--gedaempft); transition:height .4s ease}
+.kt-perzentile i[data-geb="0"]{background:var(--geb-0)}
+.kt-perzentile i[data-geb="1"]{background:var(--geb-1)}
+.kt-perzentile i[data-geb="2"]{background:var(--geb-2)}
+.kt-perzentile i[data-geb="3"]{background:var(--geb-3)}
+.kt-perzentile i[data-geb="4"]{background:var(--geb-4)}
+.kt-perzentile i[data-geb="5"]{background:var(--geb-5)}
+
+.kette-fuss{margin:8px 0 0; font-size:.7rem; color:var(--gedaempft)}
+/* Antwortet der Knoten nicht mehr, bleiben die letzten bekannten Zahlen
+   stehen - aber grau. Sie sind echt, nur nicht mehr frisch. */
+.kette-weg .kb,.kette-weg .kette-tafel{filter:grayscale(1); opacity:.55}
+
+/* --- Bewegung ----------------------------------------------------------- */
+/* Der neue Block waechst von null auf seine Breite: dadurch ruecken alle
+   anderen nach links, ohne dass irgendwo eine Breite gemessen werden muss.
+   Der abtretende Block macht dasselbe rueckwaerts (Klasse kb-raus). */
+@keyframes kb-rein{
+  from{flex-basis:0; margin-left:0; opacity:0}
+  to{flex-basis:var(--kb-breite); margin-left:var(--kb-luecke); opacity:1}
+}
+@keyframes kb-blitz{
+  0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--geb,var(--akzent)) 85%, transparent)}
+  35%{box-shadow:0 0 18px 2px color-mix(in srgb, var(--geb,var(--akzent)) 65%, transparent)}
+  100%{box-shadow:0 0 0 0 transparent}
+}
+.kb-neu{animation:kb-rein .55s cubic-bezier(.2,.8,.2,1), kb-blitz 1.3s ease-out}
+.kb-raus{flex-basis:0; opacity:0; padding-left:0; padding-right:0;
+  transition:flex-basis .5s ease, opacity .3s ease, padding .5s ease}
+.kb-raus + .kb{margin-left:0; transition:margin-left .5s ease}
+
+@media (prefers-reduced-motion: reduce){
+  /* Nichts bewegt sich, alles wechselt. Die Zahlen bleiben dieselben. */
+  .kb,.kb-neu,.kb-raus,.kb-balken i,.kb-fuell i,.kt-perzentile i{
+    animation:none !important; transition:none !important}
+  .kb[href]:hover{transform:none}
+}
+
+@media (max-width: 640px){
+  :root{--kb-breite:96px}
+  .kette-band{gap:6px}
+  .kb{padding:8px 8px 10px; min-height:126px}
+  .kb-warte{flex-basis:112px}
+  .kb-gross{font-size:.95rem}
+  .kette-kopf{flex-wrap:wrap}
+  .kt-perzentile{margin-left:0}
+}

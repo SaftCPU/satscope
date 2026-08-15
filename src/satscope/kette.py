@@ -37,9 +37,16 @@ from .rpc import RpcFehler
 ANZAHL = 12
 
 # Der Mempool aendert sich staendig, die Bloecke nicht. Er bekommt deshalb einen
-# eigenen, kurzen Speicher: er bremst nicht den einzelnen Browser (der fragt alle
-# 5 s), sondern die Summe mehrerer offener Fenster.
-MEMPOOL_ALTER = 2.0
+# eigenen, kurzen Speicher. 4 s liegen unter dem Abfragetakt von 5 s - ein
+# einzelner Browser sieht also immer frische Zahlen -, fangen aber die zweite
+# und dritte gleichzeitig offene Seite ab.
+MEMPOOL_ALTER = 4.0
+
+# Die Gebuehrenschaetzung folgt den Bloecken, nicht dem Sekundentakt: bitcoind
+# rechnet sie aus bestaetigten Bloecken, nicht aus dem Augenblick. 30 s Alter
+# liegen damit unterhalb ihrer eigenen Aufloesung und sparen drei Aufrufe je
+# Abfrage - aus 37 ms Knotenzeit je Abfrage werden so 16 ms.
+SCHAETZUNG_ALTER = 30.0
 
 # War eine Erhebung unvollstaendig (ein Aufruf fiel aus), darf sie sich nicht bis
 # zum naechsten Block einbrennen. Nach dieser Frist wird es noch einmal versucht.
@@ -57,6 +64,7 @@ ZIELE = (1, 3, 6)
 
 _bloecke = {"hash": None, "liste": [], "erhoben": 0.0, "vollstaendig": False}
 _mempool = {"wert": None, "erhoben": 0.0}
+_schaetzung = {"wert": None, "erhoben": 0.0}
 
 # Ohne Schloss erheben drei gleichzeitig eintreffende Anfragen dreimal dasselbe.
 _schloss = asyncio.Lock()
@@ -213,22 +221,34 @@ def _fenster(liste):
     }
 
 
+async def _schaetzungen(tor):
+    """Was der Eintritt kostet, je Ziel. Eigener Speicher, s. SCHAETZUNG_ALTER.
+
+    Braucht kein eigenes Schloss: der einzige Aufrufer laeuft bereits unter
+    _mempool_schloss.
+    """
+    jetzt = time.monotonic()
+    if (_schaetzung["wert"] is None
+            or jetzt - _schaetzung["erhoben"] > SCHAETZUNG_ALTER):
+        antworten = await asyncio.gather(
+            *[_sicher(tor, "estimatesmartfee", z) for z in ZIELE])
+        # estimatesmartfee antwortet bei zu duenner Datenlage mit "errors" und
+        # ohne feerate. Dann fehlt die Zahl - geraten wird nicht.
+        _schaetzung["wert"] = [{"ziel": z, "satvb": _satvb(_wert(a, "feerate"))}
+                               for z, a in zip(ZIELE, antworten)]
+        _schaetzung["erhoben"] = jetzt
+    return _schaetzung["wert"]
+
+
 async def _erhebe_mempool(tor):
     """Der wartende Block: Fuellstand und was der Eintritt gerade kostet."""
-    mp, *schaetzungen = await asyncio.gather(
-        _sicher(tor, "getmempoolinfo"),
-        *[_sicher(tor, "estimatesmartfee", z) for z in ZIELE])
+    mp, ziele = await asyncio.gather(
+        _sicher(tor, "getmempoolinfo"), _schaetzungen(tor))
 
     anzahl = _wert(mp, "size")
     bytes_ = _wert(mp, "bytes")
     speicher = _wert(mp, "usage")
     speicher_max = _wert(mp, "maxmempool")
-
-    ziele = []
-    for ziel, s in zip(ZIELE, schaetzungen):
-        # estimatesmartfee antwortet bei zu duenner Datenlage mit "errors" und
-        # ohne feerate. Dann fehlt die Zahl - geraten wird nicht.
-        ziele.append({"ziel": ziel, "satvb": _satvb(_wert(s, "feerate"))})
 
     return {
         "anzahl": anzahl,
@@ -303,6 +323,7 @@ def leeren():
     _bloecke.update({"hash": None, "liste": [], "erhoben": 0.0,
                      "vollstaendig": False})
     _mempool.update({"wert": None, "erhoben": 0.0})
+    _schaetzung.update({"wert": None, "erhoben": 0.0})
 
 
 def handler(tor):

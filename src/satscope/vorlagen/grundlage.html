@@ -4,26 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block titel %}{{ t.t("app.name") }}{% endblock %}</title>
+<script>
+/* Setzt das gespeicherte Thema, BEVOR der Browser das erste Mal zeichnet.
+   Muss vor den Stylesheets stehen: ein Skript danach wartet auf deren Laden,
+   und diese Wartezeit ist genau das Aufblitzen des falschen Themas.
+   classList.add("js") steht absichtlich AUSSERHALB des try - im privaten
+   Modus wirft localStorage, und ohne die Klasse bliebe die Kopfleiste halb
+   unsichtbar. "System" heisst: gar kein data-theme, dann greift die
+   Medienabfrage in satscope.css. */
+(function(){try{var w=localStorage.getItem("satscope-thema");
+if(w==="light"||w==="dark")document.documentElement.setAttribute("data-theme",w);}catch(e){}
+document.documentElement.classList.add("js");})();
+</script>
 <link rel="icon" type="image/svg+xml" href="/statisch/icon.svg">
 <link rel="stylesheet" href="/statisch/satscope.css">
 <link rel="stylesheet" href="/statisch/tiefenkarte.css">
+<link rel="stylesheet" href="/statisch/feinschliff.css">
 </head>
 <body>
-  <header class="kopf">
-    <a class="marke" href="/">
-      <span class="marke-punkt"></span>
-      <span class="marke-name">{{ t.t("app.name") }}</span>
-    </a>
-    <nav class="nav">
-      <!-- /node kommt in Stufe A. Kein Menuepunkt ohne Ziel:
-           ein toter Link ist der erste Klick eines jeden Pruefers. -->
-      <!-- Sprachwahl: einfacher Link, damit sie auch ohne JavaScript geht.
-           Der Server setzt das Cookie und leitet zurueck. -->
-      <a class="sprachwahl"
-         href="/sprache/{{ "de" if t.sprache == "en" else "en" }}?weiter={{ pfad }}"
-         rel="nofollow">{{ t.t("lang.switch") }}</a>
-    </nav>
-  </header>
+  {% include "teile/kopfleiste.html" %}
 
   <main class="inhalt">
     {% block inhalt %}{% endblock %}
@@ -31,5 +30,6 @@
 
   <footer class="fuss">{{ t.t("footer.nocalls") }}</footer>
   <script src="/statisch/satscope.js" defer></script>
+  <script src="/statisch/feinschliff.js" defer></script>
 </body>
 </html>

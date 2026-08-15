@@ -94,5 +94,20 @@ class Texte:
         except KeyError as fehlt:
             return "!" + schluessel + " ohne " + str(fehlt) + "!"
 
+    def roh(self, schluessel):
+        """Die Vorlage MIT ihren Platzhaltern, ohne einzusetzen.
+
+        Fuer Texte, die erst im Browser gefuellt werden: das JavaScript bekommt
+        "vor {n} Min." und setzt die Zahl selbst ein, weil sie dort im Sekundentakt
+        weiterlaeuft.
+
+        Ohne diese Funktion lieferte t() fuer solche Vorlagen
+        "!chain.age_min ohne 'n'!" - der Blockketten-Baustein musste sich mit
+        t.t("chain.age_min", n="{n}") behelfen, wo der Platzhalter sich selbst
+        einsetzt. Das ist jetzt unnoetig.
+        """
+        return (self._k.get(schluessel) or self._rueckfall.get(schluessel)
+                or ("!" + schluessel + "!"))
+
     def zahl(self, wert, stellen=0):
         return zahl(wert, stellen, self.sprache)

@@ -59,6 +59,7 @@
 .bl-achse{display:flex; gap:8px; border-top:1px solid var(--linie); padding-top:5px}
 .bl-achse span{flex:1; text-align:center; font-size:.7rem; color:var(--gedaempft)}
 .bl-achse span.mitte{color:var(--tinte); font-weight:600}
+.bl-hash{font-size:.7rem; word-break:break-all; text-align:right; line-height:1.4}
 .bl-hilfe{font-size:.75rem; color:var(--gedaempft); margin:8px 0 0; line-height:1.5}
 
 @media (prefers-reduced-motion: no-preference){
@@ -193,13 +194,15 @@
   {% if b.subsidy_sat is not none and b.gebuehren_sat is not none %}
   <p class="bl-satz bl-leitsatz">{{ t.t("block.lohn",
       sub=b.btc(b.subsidy_sat), geb=b.btc(b.gebuehren_sat)) }}</p>
-  {% endif %}
-  {% if b.gebuehren_anteil is not none %}
-  <p class="bl-satz">{{ t.t("block.gebuehrenanteil", p=t.zahl(b.gebuehren_anteil, 1)) }}</p>
+    {# Das Urteil vergleicht die GebuehrenSUMME, nicht ihren Anteil - es haengt
+       deshalb an diesem Satz, der die Summe nennt, und nicht am naechsten. #}
     {% if b.urteil.gebuehren %}
       <span class="bl-urteil">{{ t.t("block.urteil." ~ b.urteil.gebuehren.klasse,
         n=t.zahl(b.urteil.gebuehren.n), p=t.zahl(b.urteil.gebuehren.p, 0)) }}</span>
     {% endif %}
+  {% endif %}
+  {% if b.gebuehren_anteil is not none %}
+  <p class="bl-satz">{{ t.t("block.gebuehrenanteil", p=t.zahl(b.gebuehren_anteil, 1)) }}</p>
   {% endif %}
   {% if b.anteil_nach_halbierung is not none %}
   <p class="bl-satz">{{ t.t("block.nach_halbierung", p=t.zahl(b.anteil_nach_halbierung, 1)) }}</p>
@@ -308,8 +311,14 @@
   </div>
   <div class="zeile">
     <span class="k">{{ t.t("block.feld.alter") }}</span>
-    <!-- Zaehlt weiter, ohne Neuladen: satscope.js liest data-alter-seit. -->
-    <span class="w" data-alter-seit="{{ b.zeit or '' }}">{{ t.t("value.missing") }}</span>
+    <!-- Zaehlt weiter, ohne Neuladen: satscope.js liest data-alter-seit. Der
+         erste Text kommt aber vom Server, sonst stuende hier ohne JavaScript
+         dauerhaft ein Strich. `dauer` reicht die Route durch - fehlt sie,
+         bleibt es beim Strich statt bei einem Absturz. -->
+    <span class="w" data-alter-seit="{{ b.zeit or '' }}">
+      {%- if dauer is defined and b.alter is not none %}{{ dauer(b.alter) }}
+      {%- else %}{{ t.t("value.missing") }}{% endif -%}
+    </span>
   </div>
   <div class="zeile">
     <span class="k">{{ t.t("block.feld.bestaetigungen") }}</span>
@@ -362,7 +371,7 @@
   </div>
   <div class="zeile">
     <span class="k">{{ t.t("block.feld.merkle") }}</span>
-    <span class="w kennung">{{ b.merkle or t.t("value.missing") }}</span>
+    <span class="w bl-hash">{{ b.merkle or t.t("value.missing") }}</span>
   </div>
   <div class="zeile">
     <span class="k">{{ t.t("block.feld.nonce") }}</span>
