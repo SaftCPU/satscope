@@ -1,0 +1,21 @@
+{
+  "app.name": "Satscope",
+  "app.tagline": "Jede Zahl mit ihrer Einordnung",
+  "nav.home": "Übersicht",
+  "nav.node": "Dein Knoten",
+  "lang.switch": "English",
+  "state.unreachable": "Knoten nicht erreichbar",
+  "state.syncing": "Knoten holt auf",
+  "state.ok": "Erreichbar und synchron",
+  "block.height": "Blockhöhe",
+  "block.age": "Letzter Block",
+  "block.cdd": "Dieser Block hat {cdd} Coin-Tage vernichtet.",
+  "block.reuse": "{used} von {total} Skripten waren vorher schon benutzt ({share} %).",
+  "mempool.size": "Mempool",
+  "mempool.dead": "{share} % der Warteschlange liegen unter 1 sat/vB und sind faktisch tot.",
+  "fee.high": "Hohe Priorität",
+  "fee.medium": "Mittlere Priorität",
+  "fee.low": "Niedrige Priorität",
+  "value.missing": "–",
+  "footer.nocalls": "Kein einziger Aufruf ins Internet."
+}

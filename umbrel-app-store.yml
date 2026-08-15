@@ -1,0 +1,8 @@
+# Umbrel Community App Store.
+#
+# HARTE REGEL: Jede App-ID muss mit dieser Store-ID beginnen, sonst wird die App
+# beim Einlesen STILLSCHWEIGEND uebersprungen - es gibt keine Fehlermeldung, sie
+# taucht in der Oberflaeche einfach nicht auf. Deshalb heisst der Store genauso
+# wie die App: dann bleibt die App-ID sauber "satscope".
+id: 'satscope'
+name: 'Satscope'

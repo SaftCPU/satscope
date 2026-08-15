@@ -1,0 +1,44 @@
+manifestVersion: 1.1
+id: satscope
+category: bitcoin
+name: Satscope
+version: "0.1.0"
+tagline: Every number in context
+description: >-
+  Run your own Bitcoin explorer and read the chain from your own node.
+  Nobody else sees what you look up.
+
+
+  Satscope shows the same blocks, transactions and addresses as any explorer,
+  but every number comes with the context that makes it mean something.
+  Not "1.00 sat/vB", but "1.00 sat/vB - the lowest in three days".
+  Not another wall of charts, but the one detail worth noticing.
+
+
+  The front page answers a single question: how is the network doing right now?
+  Everything else lives on the object it belongs to, one click away.
+
+
+  Nothing is invented. When a source is unavailable, Satscope shows a dash
+  instead of a guess.
+releaseNotes: ""
+developer: SaftCPU
+website: https://saftcpu.com/satscope
+dependencies:
+  - bitcoin
+  - electrs
+repo: https://github.com/SaftCPU/satscope
+support: https://github.com/SaftCPU/satscope/issues
+# Ein Community-Store kann Icon und Galerie NICHT aus dem Repo aufloesen
+# (der Rueckfallpfad dafuer ist in umbreld unfertig) - es muessen volle URLs sein.
+icon: https://saftcpu.com/img/satscope/icon.svg
+gallery:
+  - https://saftcpu.com/img/satscope/1.png
+  - https://saftcpu.com/img/satscope/2.png
+  - https://saftcpu.com/img/satscope/3.png
+port: 4020
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: SaftCPU
+submission: https://github.com/SaftCPU/satscope

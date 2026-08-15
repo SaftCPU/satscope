@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.env
+satscope/data/*
+!satscope/data/.gitkeep

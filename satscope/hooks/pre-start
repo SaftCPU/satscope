@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Legt das Datenverzeichnis an, bevor die Container starten.
+#
+# Notwendig, weil umbreld bei einem UPDATE nur eine feste Liste von Dateien
+# ersetzt (docker-compose.yml, *.template, exports.sh, torrc, hooks). Ein neu
+# hinzugekommenes data/-Geruest wird bestehenden Installationen NIE nachgeliefert.
+#
+# Fehler in diesem Hook verschluckt umbreld - hier darf nichts Lebenswichtiges
+# stehen.
+set -euo pipefail
+mkdir -p "${APP_DATA_DIR}/data"
+chown 1000:1000 "${APP_DATA_DIR}/data" || true
