@@ -50,6 +50,32 @@ body{
 .w{font-size:.94rem; font-variant-numeric:tabular-nums;
   font-family:ui-monospace,"SF Mono",Menlo,monospace; text-align:right}
 .w.hell{color:var(--akzent); font-weight:700}
+/* Die Einordnung steht direkt bei der Zahl, in derselben Zeile - eine
+   Zahl ohne Bezug ist wertlos, und mehr Bildschirm kostet es nicht. */
+.nebensatz{display:block; font-size:.72rem; color:var(--gedaempft);
+  font-family:inherit; font-variant-numeric:normal; margin-top:2px}
 .hinweis{margin-top:18px; font-size:.8rem; color:var(--gedaempft); text-align:center}
 .fuss{text-align:center; font-size:.75rem; color:var(--gedaempft);
   padding:18px; border-top:1px solid var(--linie)}
+
+/* --- Suche und Objektansichten --- */
+.suche{display:flex; gap:8px; margin-bottom:22px}
+.suche input{
+  flex:1; min-width:0; padding:9px 12px; border-radius:9px;
+  border:1px solid var(--linie); background:var(--flaeche); color:var(--tinte);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.86rem;
+}
+.suche input:focus{outline:2px solid var(--akzent); outline-offset:1px}
+.suche button{
+  padding:9px 16px; border-radius:9px; border:none; cursor:pointer;
+  background:var(--akzent); color:#fff; font-weight:600; font-size:.86rem;
+}
+.fehler{color:var(--schlecht); font-size:.84rem; margin:-14px 0 18px}
+.objekt{font-size:1.3rem; font-weight:750; letter-spacing:-.02em; margin:0 0 4px}
+.kennung{
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.8rem;
+  color:var(--gedaempft); word-break:break-all; margin:0 0 16px;
+}
+.liste{margin-top:16px; background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:6px 22px}
+.k.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}

@@ -1,6 +1,8 @@
 {% extends "grundlage.html" %}
 
 {% block inhalt %}
+{% include "suche.html" %}
+
 <section class="zustand">
   <div class="zustand-kopf">
     <span class="punkt {{ 'gut' if z.erreichbar and not z.holt_auf else 'schlecht' }}"></span>
@@ -27,6 +29,22 @@
     <span class="k">{{ t.t("mempool.size") }}</span>
     <span class="w">
       {% if z.mempool_bytes %}{{ t.zahl(z.mempool_bytes / 1000000, 1) }} MB{% else %}{{ t.t("value.missing") }}{% endif %}
+    </span>
+  </div>
+  <!-- Der Index gegen den Knoten gehalten. Genau die Entwurfsidee: nicht die
+       nackte Zahl, sondern was sie bedeutet. -->
+  <div class="zeile">
+    <span class="k">{{ t.t("index.title") }}</span>
+    <span class="w">
+      {% if z.index_hoehe is none %}{{ t.t("value.missing") }}
+      {% else %}{{ t.zahl(z.index_hoehe) }}
+        <span class="nebensatz">
+          {%- if z.index_rueckstand is none %}
+          {%- elif z.index_rueckstand == 0 %}{{ t.t("index.aligned") }}
+          {%- elif z.index_rueckstand > 0 %}{{ t.t("index.behind", n=t.zahl(z.index_rueckstand)) }}
+          {%- else %}{{ t.t("index.ahead") }}{% endif -%}
+        </span>
+      {% endif %}
     </span>
   </div>
   <div class="zeile">

@@ -5,8 +5,10 @@ Zahl und die Seite zeigt dort einen Strich. Eine halb erreichbare Quelle darf
 nicht die ganze Seite leeren - und erst recht nichts erfinden.
 """
 import asyncio
+import os
 import time
 
+from . import elektrum
 from .rpc import RpcFehler
 
 
@@ -24,11 +26,13 @@ async def zustand(tor):
     Die Aufrufe laufen nebenlaeufig; das Tor deckelt sie selbst auf vier
     gleichzeitige, damit wir bitcoinds Warteschlange nicht belegen.
     """
-    kette, mempool, mining, netz = await asyncio.gather(
+    kette, mempool, mining, netz, index = await asyncio.gather(
         _sicher(tor, "getblockchaininfo"),
         _sicher(tor, "getmempoolinfo"),
         _sicher(tor, "getmininginfo"),
         _sicher(tor, "getnetworkinfo"),
+        elektrum.index_hoehe(os.environ.get("ELECTRUM_HOST"),
+                             os.environ.get("ELECTRUM_PORT")),
     )
 
     hoehe = (kette or {}).get("blocks")
@@ -59,6 +63,13 @@ async def zustand(tor):
         "mempool_anzahl": (mempool or {}).get("size"),
         "mempool_min_gebuehr": (mempool or {}).get("mempoolminfee"),
         "schwierigkeit": (mining or {}).get("difficulty"),
+        # Der Index des Electrum-Servers gegen den Knoten gehalten. Das ist
+        # keine Zierde: haengt der Index zurueck, sind Adressabfragen still
+        # unvollstaendig - man sieht es sonst NIRGENDS, weil beide Seiten je
+        # fuer sich gesund aussehen.
+        "index_hoehe": index,
+        "index_rueckstand": (hoehe - index)
+                            if (hoehe is not None and index is not None) else None,
         "verbindungen": (netz or {}).get("connections"),
         "eingehend": (netz or {}).get("connections_in"),
         "ausgehend": (netz or {}).get("connections_out"),

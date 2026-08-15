@@ -35,6 +35,10 @@ services:
       BITCOIN_RPC_PORT: $APP_BITCOIN_RPC_PORT
       BITCOIN_RPC_USER: $APP_BITCOIN_RPC_USER
       BITCOIN_RPC_PASS: $APP_BITCOIN_RPC_PASS
+      # Erfuellt von electrs ODER Fulcrum - Umbrel setzt dieselben Variablen,
+      # weil Fulcrum `implements: electrs` meldet.
+      ELECTRUM_HOST: $APP_ELECTRS_NODE_IP
+      ELECTRUM_PORT: $APP_ELECTRS_NODE_PORT
 
 # Der Sammler-Dienst folgt, sobald er wirklich arbeitet. Ein Dienst, dessen
 # Prozess sofort zurueckkehrt, stuende dauerhaft als "Exited (0)" in der

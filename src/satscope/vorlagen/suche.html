@@ -1,0 +1,6 @@
+<form class="suche" action="/suche" method="get">
+  <input type="text" name="q" autocomplete="off" spellcheck="false"
+         placeholder="{{ t.t('search.placeholder') }}" value="{{ suchwert or '' }}">
+  <button type="submit">{{ t.t("search.go") }}</button>
+</form>
+{% if fehler %}<p class="fehler">{{ fehler }}</p>{% endif %}

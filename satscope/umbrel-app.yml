@@ -2,9 +2,13 @@ manifestVersion: 1
 id: satscope
 category: bitcoin
 name: Satscope
-version: "0.1.1"
+version: "0.2.0"
 tagline: Every number in context
 description: >-
+  Requires a Bitcoin node and an Electrum server (electrs or Fulcrum) on
+  your Umbrel. Satscope reads from both and sends nothing anywhere else.
+
+
   Stage A: Satscope currently shows the state of your own node - chain tip,
   block age, mempool size and peers. Blocks, transactions and addresses are
   not built yet.
@@ -25,11 +29,13 @@ description: >-
 releaseNotes: ""
 developer: SaftCPU
 website: https://saftcpu.com/satscope
+# Beide sind Pflicht (Daniels Entscheidung 15.08.2026).
+# "electrs" ist die Abhaengigkeits-Kennung fuer JEDEN Electrum-Server: Fulcrum
+# meldet im eigenen Manifest `implements: electrs` und erfuellt sie damit
+# ebenso. Der Nutzer kann also frei waehlen.
 dependencies:
   - bitcoin
-# electrs folgt erst mit den Adressansichten. Als Abhaengigkeit erzwingt Umbrel
-# die Installation VORHER - der Nutzer wuerde tagelang indizieren, um eine
-# Statusseite zu sehen.
+  - electrs
 repo: https://github.com/SaftCPU/satscope
 support: https://github.com/SaftCPU/satscope/issues
 # Ein Community-Store kann Icon und Galerie NICHT aus dem Repo aufloesen

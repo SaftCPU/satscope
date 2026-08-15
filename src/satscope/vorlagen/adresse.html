@@ -1,0 +1,58 @@
+{% extends "grundlage.html" %}
+{% block titel %}{{ kurz }} · {{ t.t("app.name") }}{% endblock %}
+
+{% block inhalt %}
+{% include "suche.html" %}
+
+<h1 class="objekt">{{ t.t("address.title") }}</h1>
+<p class="kennung">{{ adresse }}</p>
+
+<section class="zustand">
+  <div class="zeile">
+    <span class="k">{{ t.t("address.type") }}</span>
+    <span class="w">{{ art }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("address.balance") }}</span>
+    <span class="w hell">{{ btc(u.bestaetigt_sat) }} {{ t.t("unit.btc") }}</span>
+  </div>
+  {% if u.offen_sat %}
+  <div class="zeile">
+    <span class="k">{{ t.t("address.pending") }}</span>
+    <span class="w">{{ btc(u.offen_sat) }} {{ t.t("unit.btc") }}</span>
+  </div>
+  {% endif %}
+  <div class="zeile">
+    <span class="k">{{ t.t("address.moves") }}</span>
+    <span class="w">
+      {{ t.zahl(u.anzahl) }}
+      {# Die Einordnung, nicht die nackte Zahl: Wiederverwendung ist der
+         haeufigste Datenschutzfehler und sieht man sonst nirgends benannt. #}
+      <span class="nebensatz">
+        {%- if u.anzahl == 0 %}{{ t.t("address.empty") }}
+        {%- elif u.anzahl == 1 %}{{ t.t("address.once") }}
+        {%- else %}{{ t.t("address.reuse", n=t.zahl(u.anzahl)) }}{% endif -%}
+      </span>
+    </span>
+  </div>
+</section>
+
+{% if u.zu_gross %}
+  <p class="hinweis">{{ t.t("address.toobig", n=t.zahl(u.anzahl)) }}</p>
+{% elif u.verlauf %}
+<section class="liste">
+  {% for e in u.verlauf %}
+  <div class="zeile">
+    <span class="k mono">{{ e.tx_hash[:16] }}…</span>
+    <span class="w">
+      {%- if e.height and e.height > 0 -%}
+        {{ t.t("address.confirmed_at", h=t.zahl(e.height)) }}
+      {%- else -%}
+        {{ t.t("address.in_mempool") }}
+      {%- endif -%}
+    </span>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}
