@@ -1,0 +1,342 @@
+{% extends "grundlage.html" %}
+{% block titel %}{{ (d.txid or "")[:12] }}… · {{ t.t("app.name") }}{% endblock %}
+
+{% block inhalt %}
+{#  Das Stilblatt steht hier und nicht in satscope.css, weil diese Seite als
+    eigener Baustein entstanden ist und satscope.css waehrenddessen jemand
+    anderem gehoerte. Es benutzt ausschliesslich die Farbvariablen von dort,
+    laesst sich also unveraendert hinueberschieben. Alle Namen tragen tx-,
+    damit nichts kollidiert.                                                 #}
+<style>
+/* Diese Seite zeigt zwei Spalten Geldfluss - 560 px sind dafuer zu eng. */
+.inhalt{max-width:900px}
+
+.tx-kopf{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:2px}
+.tx-pille{display:inline-flex; align-items:center; gap:7px; font-size:.74rem;
+  font-weight:600; letter-spacing:.02em; padding:3px 11px; border-radius:999px;
+  border:1px solid var(--linie); background:var(--flaeche); color:var(--gedaempft)}
+.tx-pille .punkt{width:7px;height:7px}
+.tx-pille.wartet .punkt{background:var(--akzent); animation:tx-puls 2s ease-in-out infinite}
+.tx-pille.fest .punkt{background:var(--gut)}
+.tx-pille.schief .punkt{background:var(--schlecht)}
+@keyframes tx-puls{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* Die Befunde sind der eigentliche Inhalt der Seite: ganze Saetze ueber der
+   Tabelle, nicht in ihr. Deshalb stehen sie zuoberst und in Lesegroesse. */
+.tx-befunde{list-style:none; margin:0 0 22px; padding:0}
+.tx-befund{position:relative; padding:7px 0 7px 22px; font-size:.92rem;
+  border-top:1px solid var(--linie)}
+.tx-befund:first-child{border-top:none}
+.tx-befund::before{content:""; position:absolute; left:4px; top:1.05em;
+  width:7px; height:7px; border-radius:50%; background:var(--gedaempft)}
+.tx-befund.gut::before{background:var(--gut)}
+.tx-befund.warn::before{background:var(--schlecht)}
+
+.tx-kacheln{display:grid; gap:10px; margin-bottom:18px;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.tx-kachel{background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:12px 14px}
+.tx-kachel .k{display:block; font-size:.74rem; color:var(--gedaempft)}
+.tx-kachel .w{display:block; text-align:left; font-size:1.02rem; font-weight:700;
+  margin-top:2px; word-break:break-word}
+.tx-kachel .w.hell{color:var(--akzent)}
+.tx-kachel .nebensatz{margin-top:3px}
+
+/* Gebuehrenband: die Zahl allein sagt nichts, ihre Lage zwischen zwei
+   sprechenden Marken schon. */
+.tx-band{background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:14px 18px 12px; margin-bottom:18px}
+.tx-band-titel{font-size:.78rem; color:var(--gedaempft); margin-bottom:10px}
+.tx-spur{position:relative; height:8px; border-radius:999px;
+  background:color-mix(in srgb, var(--gedaempft) 22%, transparent)}
+.tx-fuellung{display:block; height:100%; border-radius:999px; background:var(--akzent);
+  transform-origin:left; animation:tx-wachsen .5s ease-out both}
+@keyframes tx-wachsen{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.tx-median{position:absolute; top:-4px; width:2px; height:16px;
+  background:var(--tinte); opacity:.45; transform:translateX(-1px)}
+.tx-marken{display:flex; justify-content:space-between; gap:10px; margin-top:7px;
+  font-size:.72rem; color:var(--gedaempft);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+.tx-fluss{display:grid; gap:14px; grid-template-columns:1fr 1fr; margin-bottom:18px}
+@media (max-width:680px){.tx-fluss{grid-template-columns:1fr}}
+.tx-seite{background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:6px 16px 10px}
+.tx-seite h2{font-size:.78rem; font-weight:600; color:var(--gedaempft);
+  letter-spacing:.03em; margin:12px 0 4px}
+.tx-posten{padding:9px 0; border-top:1px solid var(--linie)}
+.tx-posten:first-of-type{border-top:none}
+.tx-wer{display:block; font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:.76rem; word-break:break-all; color:var(--tinte); text-decoration:none}
+a.tx-wer:hover{color:var(--akzent)}
+.tx-unten{display:flex; justify-content:space-between; align-items:baseline;
+  gap:10px; margin-top:3px}
+.tx-betrag{font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.84rem;
+  font-variant-numeric:tabular-nums; font-weight:600}
+.tx-merk{font-size:.68rem; color:var(--gedaempft); letter-spacing:.02em}
+.tx-merk.weg{color:var(--gedaempft); text-decoration:line-through}
+.tx-merk.offen{color:var(--gut)}
+.tx-merk.laeuft{color:var(--akzent)}
+.tx-daten{font-size:.72rem; color:var(--gedaempft); word-break:break-all;
+  margin-top:3px; font-style:italic}
+.tx-mehr{font-size:.74rem; color:var(--gedaempft); padding:9px 0;
+  border-top:1px solid var(--linie)}
+
+.tx-leer{background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:18px 22px; font-size:.9rem}
+
+@media (prefers-reduced-motion: reduce){
+  .tx-pille.wartet .punkt{animation:none}
+  .tx-fuellung{animation:none}
+}
+</style>
+
+{% include "suche.html" %}
+
+{% if not d.gefunden %}
+  <h1 class="objekt">{{ t.t("tx.miss.title") }}</h1>
+  {% if d.txid or d.eingabe %}<p class="kennung">{{ d.txid or d.eingabe }}</p>{% endif %}
+  <section class="tx-leer">
+    {%- if d.grund == "keine_txid" %}{{ t.t("tx.miss.notxid") }}
+    {%- elif d.grund == "unerreichbar" %}{{ t.t("tx.miss.unreachable") }}
+    {%- elif d.grund == "kein_txindex" %}{{ t.t("tx.miss.notxindex") }}
+    {%- else %}{{ t.t("tx.miss.unknown") }}{% endif -%}
+  </section>
+{% else %}
+
+<div class="tx-kopf">
+  <h1 class="objekt">{{ t.t("tx.title") }}</h1>
+  {% if d.coinbase %}
+    <span class="tx-pille fest"><span class="punkt"></span>{{ t.t("tx.state.coinbase") }}</span>
+  {% elif d.verwaist %}
+    <span class="tx-pille schief"><span class="punkt"></span>{{ t.t("tx.state.orphan") }}</span>
+  {% elif d.bestaetigt %}
+    <span class="tx-pille fest"><span class="punkt"></span>{{ t.t("tx.state.confirmed") }}</span>
+  {% else %}
+    <span class="tx-pille wartet"><span class="punkt"></span>{{ t.t("tx.state.pending") }}</span>
+  {% endif %}
+</div>
+<p class="kennung">{{ d.txid }}</p>
+
+{% if befunde %}
+<ul class="tx-befunde">
+  {% for b in befunde %}<li class="tx-befund {{ b.art }}">{{ b.text }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+<div class="tx-kacheln">
+  <div class="tx-kachel">
+    <span class="k">{{ t.t("tx.label.newcoins") if d.coinbase else t.t("tx.label.amount") }}</span>
+    <span class="w hell">{{ btc(d.ausgang_sat) }} <small>{{ t.t("unit.btc") }}</small></span>
+  </div>
+  {% if not d.coinbase %}
+  <div class="tx-kachel">
+    <span class="k">{{ t.t("tx.label.fee") }}</span>
+    <span class="w">
+      {%- if d.gebuehr_sat is none %}{{ t.t("value.missing") }}
+      {%- else %}{{ t.zahl(d.gebuehr_sat) }} <small>{{ t.t("unit.sat") }}</small>{% endif -%}
+      <span class="nebensatz">{{ btc(d.gebuehr_sat) }} {{ t.t("unit.btc") }}</span>
+    </span>
+  </div>
+  <div class="tx-kachel">
+    <span class="k">{{ t.t("tx.label.feerate") }}</span>
+    <span class="w">
+      {%- if d.gebuehr_vb is none %}{{ t.t("value.missing") }}
+      {%- else %}{{ t.zahl(d.gebuehr_vb, 2) }} <small>{{ t.t("unit.satvb") }}</small>{% endif -%}
+    </span>
+  </div>
+  {% endif %}
+  <div class="tx-kachel">
+    <span class="k">{{ t.t("tx.label.vsize") }}</span>
+    <span class="w">{{ t.zahl(d.vgroesse) }} <small>{{ t.t("unit.vbyte") }}</small>
+      {% if d.block_anteil is not none %}
+      <span class="nebensatz">{{ t.t("tx.share", p=t.zahl(d.block_anteil, 2)) }}</span>
+      {% endif %}
+    </span>
+  </div>
+  {% if d.bestaetigt %}
+  <div class="tx-kachel">
+    <span class="k">{{ t.t("tx.label.confirmations") }}</span>
+    {# Das Alter waechst weiter, ohne die Seite neu zu laden - satscope.js
+       zaehlt jedes data-alter-seit hoch. Der Servertext steht trotzdem drin,
+       damit die Zeile auch ohne JavaScript stimmt. #}
+    <span class="w">{{ t.zahl(d.bestaetigungen) }}
+      <span class="nebensatz" data-alter-seit="{{ d.blockzeit or '' }}">{{ dauer(d.block_alter) }}</span>
+    </span>
+  </div>
+  <div class="tx-kachel">
+    <span class="k">{{ t.t("tx.label.block") }}</span>
+    <span class="w">{{ t.zahl(d.blockhoehe) }}</span>
+  </div>
+  {% elif d.mempool %}
+  <div class="tx-kachel">
+    <span class="k">{{ t.t("tx.label.age") }}</span>
+    <span class="w">{{ spanne(d.mempool.alter_s) }}</span>
+  </div>
+  {% endif %}
+</div>
+
+{% if d.band %}
+<section class="tx-band">
+  <div class="tx-band-titel">
+    {{ t.t("tx.band.block") if d.band.quelle == "block" else t.t("tx.band.andrang") }}
+  </div>
+  <div class="tx-spur">
+    <span class="tx-fuellung" style="width:{{ "%.1f"|format(d.band.pos) }}%"></span>
+    <span class="tx-median" style="left:{{ "%.1f"|format(d.band.mitte_pos) }}%"
+          title="{{ t.t("tx.band.median") }}"></span>
+  </div>
+  <div class="tx-marken">
+    <span>{{ t.zahl(d.band.unten, 2) }} {{ t.t("unit.satvb") }}</span>
+    <span>{{ t.zahl(d.band.rate, 2) }} {{ t.t("unit.satvb") }}</span>
+    <span>{{ t.zahl(d.band.oben, 2) }} {{ t.t("unit.satvb") }}</span>
+  </div>
+</section>
+{% endif %}
+
+<div class="tx-fluss">
+  <section class="tx-seite">
+    <h2>{{ t.t("tx.label.inputs") }} · {{ t.zahl(d.eingaenge|length) }}</h2>
+    {% for e in d.eingaenge[:50] %}
+    <div class="tx-posten">
+      {% if e.coinbase %}
+        <span class="tx-wer">{{ t.t("tx.in.coinbase") }}</span>
+      {% elif e.adresse %}
+        <a class="tx-wer" href="/address/{{ e.adresse }}">{{ e.adresse }}</a>
+      {% elif e.txid %}
+        <a class="tx-wer" href="/tx/{{ e.txid }}">{{ e.txid[:20] }}…:{{ e.vout }}</a>
+      {% else %}
+        <span class="tx-wer">{{ t.t("value.missing") }}</span>
+      {% endif %}
+      <span class="tx-unten">
+        <span class="tx-betrag">
+          {%- if e.betrag_sat is none %}{{ t.t("value.missing") }}
+          {%- else %}{{ btc(e.betrag_sat) }}{% endif -%}
+        </span>
+        <span class="tx-merk">
+          {{- e.art or "" }}{% if e.rbf %} · {{ t.t("tx.in.rbf") }}{% endif -%}
+        </span>
+      </span>
+      {% if e.text %}<div class="tx-daten">{{ e.text }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    {% if d.eingaenge|length > 50 %}
+    <div class="tx-mehr">{{ t.t("tx.more", n=t.zahl(d.eingaenge|length - 50)) }}</div>
+    {% endif %}
+  </section>
+
+  <section class="tx-seite">
+    <h2>{{ t.t("tx.label.outputs") }} · {{ t.zahl(d.ausgaenge|length) }}</h2>
+    {% for a in d.ausgaenge[:50] %}
+    <div class="tx-posten">
+      {% if a.adresse %}
+        <a class="tx-wer" href="/address/{{ a.adresse }}">{{ a.adresse }}</a>
+      {% else %}
+        <span class="tx-wer">{{ a.art or t.t("value.missing") }}</span>
+      {% endif %}
+      <span class="tx-unten">
+        <span class="tx-betrag">{{ btc(a.betrag_sat) }}</span>
+        <span class="tx-merk
+          {{- ' weg' if a.status == 'ausgegeben' }}
+          {{- ' offen' if a.status == 'offen' }}
+          {{- ' laeuft' if a.status == 'ausgegeben_offen' }}">
+          {%- if a.status == "ausgegeben" %}{{ t.t("tx.out.spent") }}
+          {%- elif a.status == "ausgegeben_offen" %}{{ t.t("tx.out.spent_pending") }}
+          {%- elif a.status == "offen" %}{{ t.t("tx.out.unspent") }}
+          {%- elif a.status == "daten" %}{{ t.t("tx.out.data") }}
+          {%- else %}{{ a.art or t.t("tx.out.unknown") }}{% endif -%}
+        </span>
+      </span>
+      {% if a.daten_text %}<div class="tx-daten">{{ a.daten_text }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    {% if d.ausgaenge|length > 50 %}
+    <div class="tx-mehr">{{ t.t("tx.more", n=t.zahl(d.ausgaenge|length - 50)) }}</div>
+    {% endif %}
+  </section>
+</div>
+
+{% if d.mempool %}
+<section class="zustand">
+  <div class="zustand-kopf">
+    <span class="punkt"></span>
+    <span class="zustand-titel">{{ t.t("tx.label.mempool") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.ancestors") }}</span>
+    <span class="w">
+      {%- if d.mempool.ahnen_vb is none %}{{ t.t("value.missing") }}
+      {%- else %}{{ t.zahl(d.mempool.ahnen_vb, 2) }} {{ t.t("unit.satvb") }}
+      <span class="nebensatz">{{ t.t("tx.pack", n=t.zahl(d.mempool.ahnen),
+        v=t.zahl(d.mempool.ahnen_vsize)) }}</span>{% endif -%}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.descendants") }}</span>
+    <span class="w">
+      {%- if d.mempool.nachfahren_vb is none %}{{ t.t("value.missing") }}
+      {%- else %}{{ t.zahl(d.mempool.nachfahren_vb, 2) }} {{ t.t("unit.satvb") }}
+      <span class="nebensatz">{{ t.t("tx.pack", n=t.zahl(d.mempool.nachfahren),
+        v=t.zahl(d.mempool.nachfahren_vsize)) }}</span>{% endif -%}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.chunk") }}</span>
+    <span class="w">
+      {%- if not d.chunk %}{{ t.t("value.missing") }}
+        <span class="nebensatz">{{ t.t("tx.chunk.none") }}</span>
+      {%- elif d.chunk.chunk_vb is not none %}{{ t.zahl(d.chunk.chunk_vb, 2) }} {{ t.t("unit.satvb") }}
+        <span class="nebensatz">{{ t.t("tx.chunk.of", n=t.zahl(d.chunk.chunk_gross),
+          c=t.zahl(d.chunk.cluster_gross)) }}</span>
+      {%- else %}{{ t.zahl(d.chunk.cluster_gross) }}
+        <span class="nebensatz">{{ t.t("tx.chunk.cluster") }}</span>{% endif -%}
+    </span>
+  </div>
+</section>
+{% endif %}
+
+<section class="zustand" style="margin-top:18px">
+  <div class="zustand-kopf">
+    <span class="punkt"></span>
+    <span class="zustand-titel">{{ t.t("tx.label.details") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.weight") }}</span>
+    <span class="w">{{ t.zahl(d.gewicht) }} <small>WU</small>
+      <span class="nebensatz">{{ t.t("tx.label.basesize") }}: {{ t.zahl(d.grundgroesse) }} B</span>
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.segwit") }}</span>
+    <span class="w">
+      {%- if d.segwit %}{{ t.t("tx.yes") }}{% else %}{{ t.t("tx.no") }}{% endif -%}
+      {% if d.zeugen_bytes %}<span class="nebensatz">{{ t.zahl(d.zeugen_bytes) }} B</span>{% endif %}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.rbf") }}</span>
+    <span class="w">{% if d.rbf %}{{ t.t("tx.yes") }}{% else %}{{ t.t("tx.no") }}{% endif %}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.locktime") }}</span>
+    <span class="w">
+      {%- if not d.sperrzeit %}{{ t.t("tx.locktime.none") }}
+      {%- elif d.sperrzeit_art == "hoehe" %}{{ t.t("tx.locktime.height", h=t.zahl(d.sperrzeit)) }}
+      {%- else %}{{ t.t("tx.locktime.time", z=d.sperrzeit_utc) }}{% endif -%}
+      {% if d.sperrzeit and not d.sperrzeit_wirksam %}
+      <span class="nebensatz">{{ t.t("tx.locktime.inert") }}</span>{% endif %}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.version") }}</span>
+    <span class="w">{{ t.zahl(d.version) }}</span>
+  </div>
+  {% if d.wtxid and d.wtxid != d.txid %}
+  <div class="zeile">
+    <span class="k">{{ t.t("tx.label.wtxid") }}</span>
+    <span class="w" style="word-break:break-all">{{ d.wtxid }}</span>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

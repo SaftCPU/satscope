@@ -207,6 +207,7 @@ kbd{
    kommt. Auf Geraeten ohne Zeigegeraet gibt es kein "in die Naehe kommen" -
    dort ist er immer sichtbar (die Medienabfrage weiter unten). */
 .kopieren{
+  position:relative;                     /* Bezug fuer die Meldung unten */
   display:inline-flex; align-items:center; justify-content:center;
   width:24px; height:24px; margin-left:6px; vertical-align:-5px;
   border:1px solid transparent; border-radius:6px; background:none;
@@ -225,13 +226,23 @@ kbd{
    kann - CSS-content mit festem Text waere einsprachig. */
 .kopieren.geschafft::after,.kopieren.misslungen::after{
   content:attr(data-meldung);
-  position:absolute; transform:translateY(-26px);
+  /* Mittig ueber dem Knopf statt an seiner linken Kante: die Meldung ist
+     breiter als die 24 px des Knopfes und liefe sonst nach rechts aus dem
+     Bild, sobald der Knopf am Zeilenende steht. */
+  position:absolute; left:50%; bottom:100%; margin-bottom:4px;
+  transform:translateX(-50%);
   padding:3px 8px; border-radius:6px; white-space:nowrap; pointer-events:none;
   background:var(--tinte); color:var(--grund);
   font-size:.68rem; font-weight:600; letter-spacing:.01em;
-  animation:auftauchen .14s ease-out;
+  /* Eigene Bildfolge, nicht "auftauchen": deren transform wuerde die
+     Mittigkeit oben ueberschreiben, und die Meldung ruckte beim Erscheinen
+     nach rechts. */
+  animation:meldung-auf .14s ease-out;
 }
-.kopieren{position:relative}
+@keyframes meldung-auf{
+  from{opacity:0; transform:translateX(-50%) translateY(3px)}
+  to{opacity:1; transform:translateX(-50%)}
+}
 
 /* --------------------------------------------------------- Ladezustand
 

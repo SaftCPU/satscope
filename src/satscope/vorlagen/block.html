@@ -1,0 +1,382 @@
+{% extends "grundlage.html" %}
+{% block titel %}
+  {%- if b.gefunden %}Block {{ t.zahl(b.hoehe) }}{% else %}{{ t.t("block.nf.title") }}{% endif %} · {{ t.t("app.name") }}
+{%- endblock %}
+
+{% block inhalt %}
+<style>
+/* Eigenes CSS der Blockseite. Es steht hier und nicht in satscope.css, weil
+   dort parallel gearbeitet wird; alle Klassen tragen deshalb den Vorsatz "bl-"
+   und koennen nicht mit fremden Namen kollidieren. Farben ausschliesslich ueber
+   die Variablen - eine feste Farbe waere in genau einem der beiden Themes
+   unlesbar. */
+.bl-kopf{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.bl-nav{display:flex; gap:6px; flex:none; margin-top:4px}
+.bl-nav a, .bl-nav span{
+  display:inline-block; padding:3px 9px; border-radius:7px; font-size:.78rem;
+  border:1px solid var(--linie); text-decoration:none; color:var(--gedaempft);
+  background:var(--flaeche); white-space:nowrap;
+}
+.bl-nav a:hover{color:var(--tinte); border-color:var(--akzent)}
+.bl-nav span{opacity:.4}
+
+.bl-kapitel{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  padding:16px 22px 18px; margin-top:16px;
+}
+.bl-kapitel h2{
+  font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gedaempft); margin:0 0 10px;
+}
+.bl-satz{margin:0 0 8px; font-size:.95rem; line-height:1.62}
+.bl-satz:last-child{margin-bottom:0}
+/* Der Leitsatz ist der Befund, um den es im Kapitel geht - alles Weitere
+   erlaeutert ihn nur. */
+.bl-leitsatz{font-size:1.06rem; font-weight:600; letter-spacing:-.01em}
+.bl-urteil{
+  display:block; font-size:.78rem; color:var(--gedaempft); margin:-4px 0 10px;
+  padding-left:11px; border-left:2px solid var(--linie);
+}
+.bl-warn{color:var(--schlecht)}
+.bl-gut{color:var(--gut)}
+
+/* Fuellstand: die Konsensgrenze als Strecke, der Block als Fuellung darin. */
+.bl-fuellung{height:9px; border-radius:5px; background:var(--linie);
+  overflow:hidden; margin:6px 0 12px}
+.bl-fuellung i{display:block; height:100%; background:var(--akzent); border-radius:5px}
+
+/* Gebuehrenband: fuenf Saeulen ueber das Blockgewicht. */
+.bl-band{display:flex; align-items:flex-end; gap:8px; height:96px; margin:10px 0 4px}
+.bl-saeulenpaar{flex:1; display:flex; flex-direction:column; justify-content:flex-end;
+  height:100%; text-align:center}
+.bl-wert{font-size:.7rem; color:var(--gedaempft); font-variant-numeric:tabular-nums;
+  margin-bottom:3px}
+.bl-saeule{
+  background:color-mix(in srgb, var(--akzent) 38%, transparent);
+  border-radius:4px 4px 0 0; min-height:2px;
+}
+.bl-saeulenpaar.mitte .bl-saeule{background:var(--akzent)}
+.bl-achse{display:flex; gap:8px; border-top:1px solid var(--linie); padding-top:5px}
+.bl-achse span{flex:1; text-align:center; font-size:.7rem; color:var(--gedaempft)}
+.bl-achse span.mitte{color:var(--tinte); font-weight:600}
+.bl-hilfe{font-size:.75rem; color:var(--gedaempft); margin:8px 0 0; line-height:1.5}
+
+@media (prefers-reduced-motion: no-preference){
+  .bl-saeule{animation:bl-wachsen .5s cubic-bezier(.2,.7,.3,1) both}
+  .bl-fuellung i{animation:bl-breit .6s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes bl-wachsen{from{transform:scaleY(0)} to{transform:scaleY(1)}}
+  @keyframes bl-breit{from{width:0}}
+}
+.bl-saeule{transform-origin:bottom}
+</style>
+
+{% include "suche.html" %}
+
+{% if not b.gefunden %}
+  {# Sauberes Nichtfinden: die Seite bleibt stehen, erklaert den Grund und
+     laesst die Suchzeile oben stehen, damit man es gleich neu versuchen kann. #}
+  <h1 class="objekt">{{ t.t("block.nf.title") }}</h1>
+  <p class="bl-satz">
+    {%- if b.grund == "form" %}{{ t.t("block.nf.form", eingabe=b.eingabe) }}
+    {%- elif b.grund == "zukunft" %}{{ t.t("block.nf.zukunft", eingabe=b.eingabe, spitze=t.zahl(b.spitze)) }}
+    {%- elif b.grund == "knoten" %}{{ t.t("block.nf.knoten") }}
+    {%- else %}{{ t.t("block.nf.unbekannt") }}{% endif -%}
+  </p>
+  {% if b.spitze is not none %}
+  <p class="bl-satz"><a href="/block/{{ b.spitze }}">{{ t.t("block.nf.zurspitze", h=t.zahl(b.spitze)) }}</a></p>
+  {% endif %}
+
+{% else %}
+
+<div class="bl-kopf">
+  <div>
+    <h1 class="objekt">{{ t.t("block.headline", h=t.zahl(b.hoehe)) }}</h1>
+  </div>
+  <div class="bl-nav">
+    {% if b.vorgaenger is not none %}
+      <a href="/block/{{ b.vorgaenger }}" rel="prev">&larr; {{ t.zahl(b.vorgaenger) }}</a>
+    {% endif %}
+    {% if b.nachfolger is not none %}
+      <a href="/block/{{ b.nachfolger }}" rel="next">{{ t.zahl(b.nachfolger) }} &rarr;</a>
+    {% else %}
+      <span>{{ t.t("block.nav.keiner") }}</span>
+    {% endif %}
+  </div>
+</div>
+<p class="kennung">{{ b.hash }}</p>
+
+{% if b.verwaist %}
+  <p class="bl-satz bl-warn">{{ t.t("block.verwaist") }}</p>
+{% endif %}
+
+<!-- ---------------------------------------------- Zeit und Arbeit -->
+<section class="bl-kapitel">
+  <h2>{{ t.t("block.kapitel.zeit") }}</h2>
+
+  {% if b.abstand_klasse %}
+  <p class="bl-satz bl-leitsatz">
+    {%- if b.abstand_klasse == "rueckwaerts" %}{{ t.t("block.abstand.rueckwaerts", min=t.zahl(b.abstand_minuten, 1)) }}
+    {%- elif b.abstand_klasse == "sofort" %}{{ t.t("block.abstand.sofort", min=t.zahl(b.abstand_minuten, 1)) }}
+    {%- elif b.abstand_klasse == "schnell" %}{{ t.t("block.abstand.schnell", min=t.zahl(b.abstand_minuten, 1)) }}
+    {%- elif b.abstand_klasse == "normal" %}{{ t.t("block.abstand.normal", min=t.zahl(b.abstand_minuten, 1)) }}
+    {%- else %}{{ t.t("block.abstand.langsam", min=t.zahl(b.abstand_minuten, 1)) }}{% endif -%}
+  </p>
+  {% endif %}
+
+  {% if b.zeit_text %}
+  <p class="bl-satz">{{ t.t("block.zeitpunkt", zeit=b.zeit_text) }}</p>
+  {% endif %}
+
+  {% if b.arbeit %}
+  <p class="bl-satz">{{ t.t("block.arbeit",
+       diff=t.zahl(b.schwierigkeit, 0), w=t.zahl(b.arbeit, 1), einheit=b.arbeit_einheit) }}</p>
+  {% endif %}
+  {% if b.nullen %}
+  <p class="bl-satz">{{ t.t("block.nullen", n=t.zahl(b.nullen)) }}</p>
+  {% endif %}
+
+  <p class="bl-satz">
+    {%- if b.verwaist %}
+    {%- elif b.ist_spitze %}{{ t.t("block.spitze") }}
+    {%- elif b.endgueltig %}{{ t.t("block.bestaetigt", n=t.zahl(b.bestaetigungen - 1)) }}
+    {%- elif b.bestaetigungen %}{{ t.t("block.frisch", n=t.zahl(b.bestaetigungen - 1)) }}{% endif -%}
+  </p>
+</section>
+
+{% if not b.stats_da %}
+  {# getblockstats fehlt - dann fehlen genau die daraus abgeleiteten Befunde
+     und sonst nichts. Kein leerer Bildschirm wegen eines Aufrufs. #}
+  <p class="hinweis">{{ t.t("block.stats_fehlt") }}</p>
+{% else %}
+
+<!-- ---------------------------------------------- Groesse und Fuellung -->
+<section class="bl-kapitel">
+  <h2>{{ t.t("block.kapitel.fuellung") }}</h2>
+
+  {% if b.fuellung is not none %}
+  <p class="bl-satz bl-leitsatz">{{ t.t("block.gefuellt", p=t.zahl(b.fuellung, 1)) }}</p>
+  <div class="bl-fuellung" role="presentation">
+    <i style="width:{{ "%.1f"|format(b.fuellung if b.fuellung < 100 else 100) }}%"></i>
+  </div>
+  <p class="bl-satz">{{ t.t("block.fuellung." ~ b.fuellung_klasse) }}</p>
+  {% if b.urteil.fuellung %}
+    <span class="bl-urteil">{{ t.t("block.urteil." ~ b.urteil.fuellung.klasse,
+      n=t.zahl(b.urteil.fuellung.n), p=t.zahl(b.urteil.fuellung.p, 0)) }}</span>
+  {% endif %}
+  {% endif %}
+
+  {% if b.leerer_block %}
+    <p class="bl-satz">{{ t.t("block.leer") }}</p>
+  {% elif b.zahlungen is not none %}
+    <p class="bl-satz">{{ t.t("block.txs", n=t.zahl(b.zahlungen)) }}</p>
+    {% if b.urteil.txs %}
+      <span class="bl-urteil">{{ t.t("block.urteil." ~ b.urteil.txs.klasse,
+        n=t.zahl(b.urteil.txs.n), p=t.zahl(b.urteil.txs.p, 0)) }}</span>
+    {% endif %}
+  {% endif %}
+
+  {% if b.groesse is not none and b.gewicht is not none %}
+  <p class="bl-satz">{{ t.t("block.groesse",
+      kb=t.zahl(b.groesse / 1000, 1), gew=t.zahl(b.gewicht)) }}</p>
+  {% endif %}
+  {% if b.tx_bytes_schnitt is not none and not b.leerer_block %}
+  <p class="bl-satz">{{ t.t("block.txgroessen",
+      avg=t.zahl(b.tx_bytes_schnitt), med=t.zahl(b.tx_bytes_median),
+      max=t.zahl(b.tx_bytes_max)) }}</p>
+  {% endif %}
+</section>
+
+<!-- ---------------------------------------------- Der Lohn des Miners -->
+<section class="bl-kapitel">
+  <h2>{{ t.t("block.kapitel.geld") }}</h2>
+
+  {% if b.subsidy_sat is not none and b.gebuehren_sat is not none %}
+  <p class="bl-satz bl-leitsatz">{{ t.t("block.lohn",
+      sub=b.btc(b.subsidy_sat), geb=b.btc(b.gebuehren_sat)) }}</p>
+  {% endif %}
+  {% if b.gebuehren_anteil is not none %}
+  <p class="bl-satz">{{ t.t("block.gebuehrenanteil", p=t.zahl(b.gebuehren_anteil, 1)) }}</p>
+    {% if b.urteil.gebuehren %}
+      <span class="bl-urteil">{{ t.t("block.urteil." ~ b.urteil.gebuehren.klasse,
+        n=t.zahl(b.urteil.gebuehren.n), p=t.zahl(b.urteil.gebuehren.p, 0)) }}</span>
+    {% endif %}
+  {% endif %}
+  {% if b.anteil_nach_halbierung is not none %}
+  <p class="bl-satz">{{ t.t("block.nach_halbierung", p=t.zahl(b.anteil_nach_halbierung, 1)) }}</p>
+  {% endif %}
+  {% if b.bis_halbierung %}
+  <p class="bl-satz">{{ t.t("block.epoche", e=t.zahl(b.epoche), h=t.zahl(b.halbierung),
+      n=t.zahl(b.bis_halbierung), tage=t.zahl(b.tage_halbierung, 0)) }}</p>
+  {% endif %}
+  {% if b.bewegt_sat is not none %}
+  <p class="bl-satz">{{ t.t("block.bewegt", btc=b.btc(b.bewegt_sat)) }}</p>
+  {% endif %}
+</section>
+
+<!-- ---------------------------------------------- Gebuehren -->
+{% if not b.leerer_block %}
+<section class="bl-kapitel">
+  <h2>{{ t.t("block.kapitel.gebuehren") }}</h2>
+
+  {% if b.min_rate is not none %}
+  <p class="bl-satz bl-leitsatz">{{ t.t("block.guenstigste", r=t.zahl(b.min_rate, 2)) }}</p>
+    {% if b.urteil.minrate %}
+      <span class="bl-urteil">{{ t.t("block.urteil." ~ b.urteil.minrate.klasse,
+        n=t.zahl(b.urteil.minrate.n), p=t.zahl(b.urteil.minrate.p, 0)) }}</span>
+    {% endif %}
+  {% endif %}
+
+  {% if b.median_rate is not none %}
+  <p class="bl-satz">{{ t.t("block.median_rate", r=t.zahl(b.median_rate, 2)) }}</p>
+    {% if b.urteil.medianrate %}
+      <span class="bl-urteil">{{ t.t("block.urteil." ~ b.urteil.medianrate.klasse,
+        n=t.zahl(b.urteil.medianrate.n), p=t.zahl(b.urteil.medianrate.p, 0)) }}</span>
+    {% endif %}
+  {% endif %}
+
+  {% if b.max_rate is not none %}
+  <p class="bl-satz">
+    {%- if b.max_vielfaches %}{{ t.t("block.teuerste", r=t.zahl(b.max_rate, 2), f=t.zahl(b.max_vielfaches, 1)) }}
+    {%- else %}{{ t.t("block.teuerste_schlicht", r=t.zahl(b.max_rate, 2)) }}{% endif -%}
+  </p>
+  {% endif %}
+
+  {% if b.balken %}
+  <div class="bl-band">
+    {% for s in b.balken %}
+    <div class="bl-saeulenpaar{{ ' mitte' if s.name == 'p50' }}">
+      <div class="bl-wert">{{ t.zahl(s.wert, 1) }}</div>
+      <div class="bl-saeule" style="height:{{ "%.1f"|format(s.anteil) }}%"></div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="bl-achse">
+    <span>{{ t.t("block.perz.label", n=10) }}</span>
+    <span>{{ t.t("block.perz.label", n=25) }}</span>
+    <span class="mitte">{{ t.t("block.perz.median") }}</span>
+    <span>{{ t.t("block.perz.label", n=75) }}</span>
+    <span>{{ t.t("block.perz.label", n=90) }}</span>
+  </div>
+  <p class="bl-hilfe">{{ t.t("block.band.hilfe") }}</p>
+  {% endif %}
+
+  {% if b.spanne_klasse %}
+  <p class="bl-satz">{{ t.t("block.spanne." ~ b.spanne_klasse, f=t.zahl(b.spanne, 1)) }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<!-- ---------------------------------------------- Wirkung auf das Kassenbuch -->
+<section class="bl-kapitel">
+  <h2>{{ t.t("block.kapitel.struktur") }}</h2>
+
+  {% if b.aus is not none and b.ein is not none and b.utxo is not none %}
+  <p class="bl-satz bl-leitsatz">
+    {%- if b.utxo_klasse == "schrumpfung" %}{{ t.t("block.utxo.schrumpfung",
+        aus=t.zahl(b.aus), ein=t.zahl(b.ein), d=t.zahl(b.utxo|abs)) }}
+    {%- elif b.utxo_klasse == "gleich" %}{{ t.t("block.utxo.gleich", aus=t.zahl(b.aus), ein=t.zahl(b.ein)) }}
+    {%- else %}{{ t.t("block.utxo.wachstum", aus=t.zahl(b.aus), ein=t.zahl(b.ein), d=t.zahl(b.utxo)) }}{% endif -%}
+  </p>
+  {% endif %}
+  {% if b.utxo_bytes is not none %}
+  <p class="bl-satz">
+    {%- if b.utxo_bytes < 0 %}{{ t.t("block.utxo.bytes_weniger", kb=t.zahl((b.utxo_bytes|abs) / 1000, 1)) }}
+    {%- else %}{{ t.t("block.utxo.bytes", kb=t.zahl(b.utxo_bytes / 1000, 1)) }}{% endif -%}
+  </p>
+  {% endif %}
+
+  {% if b.segwit_txs is not none and not b.leerer_block %}
+  <p class="bl-satz">{{ t.t("block.segwit", p=t.zahl(b.segwit_txs, 0)) }}</p>
+    {% if b.segwit_bytes is not none %}
+    <p class="bl-satz">{{ t.t("block.segwit.bytes", p=t.zahl(b.segwit_bytes, 0)) }}</p>
+    {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+{% if b.fenster >= 3 and b.fenster_stunden is not none %}
+  <p class="hinweis">{{ t.t("block.fenster", n=t.zahl(b.fenster), std=t.zahl(b.fenster_stunden, 1)) }}</p>
+{% endif %}
+
+<!-- ---------------------------------------------- Die nackten Zahlen -->
+<section class="bl-kapitel">
+  <h2>{{ t.t("block.kapitel.zahlen") }}</h2>
+
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.zeit") }}</span>
+    <span class="w">{{ b.zeit_text or t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.alter") }}</span>
+    <!-- Zaehlt weiter, ohne Neuladen: satscope.js liest data-alter-seit. -->
+    <span class="w" data-alter-seit="{{ b.zeit or '' }}">{{ t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.bestaetigungen") }}</span>
+    <span class="w">{{ t.zahl(b.bestaetigungen) if b.bestaetigungen is not none else t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.schwierigkeit") }}</span>
+    <span class="w">{{ t.zahl(b.schwierigkeit, 0) if b.schwierigkeit is not none else t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.groesse") }}</span>
+    <span class="w">{{ (t.zahl(b.groesse) ~ " B") if b.groesse is not none else t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.gewicht") }}</span>
+    <span class="w">{{ (t.zahl(b.gewicht) ~ " " ~ t.t("unit.wu")) if b.gewicht is not none else t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.txs") }}</span>
+    <span class="w">{{ t.zahl(b.txs) if b.txs is not none else t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.ein") }}</span>
+    <span class="w">{{ t.zahl(b.ein) if b.ein is not none else t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.aus") }}</span>
+    <span class="w">{{ t.zahl(b.aus) if b.aus is not none else t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.subsidy") }}</span>
+    <span class="w">
+      {%- if b.subsidy_sat is not none %}{{ b.btc(b.subsidy_sat) }} {{ t.t("unit.btc") }}
+      {%- else %}{{ t.t("value.missing") }}{% endif -%}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.gebuehren") }}</span>
+    <span class="w">
+      {%- if b.gebuehren_sat is not none %}{{ b.btc(b.gebuehren_sat) }} {{ t.t("unit.btc") }}
+      {%- else %}{{ t.t("value.missing") }}{% endif -%}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.medianrate") }}</span>
+    <span class="w">
+      {%- if b.median_rate is not none %}{{ t.zahl(b.median_rate, 2) }} {{ t.t("unit.satvb") }}
+      {%- else %}{{ t.t("value.missing") }}{% endif -%}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.merkle") }}</span>
+    <span class="w kennung">{{ b.merkle or t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.nonce") }}</span>
+    <span class="w">{{ t.zahl(b.nonce) if b.nonce is not none else t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.bits") }}</span>
+    <span class="w">{{ b.bits or t.t("value.missing") }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.feld.fassung") }}</span>
+    <span class="w">{{ b.fassung or t.t("value.missing") }}</span>
+  </div>
+</section>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,467 @@
+{% extends "grundlage.html" %}
+{% block titel %}{{ t.t("node.title") }} · {{ t.t("app.name") }}{% endblock %}
+
+{% block inhalt %}
+{#
+  Warum das CSS hier im Dokument steht und nicht in satscope.css:
+  satscope.css gehoert einem anderen Baustein, der gleichzeitig daran arbeitet -
+  zwei Schreiber auf einer Datei geben Konflikte statt Fortschritt. Alle Klassen
+  tragen deshalb den Vorsatz "kn-", damit sie sich mit nichts beissen. Sobald die
+  Seite steht, gehoert dieser Block unveraendert nach satscope.css.
+  Farben ausschliesslich ueber die Themenvariablen; die Netzfarben entstehen mit
+  color-mix aus --akzent und --gut, damit sie in hell UND dunkel tragen.
+#}
+<style>
+.kn-unterzeile{color:var(--gedaempft); font-size:.88rem; margin:0 0 20px}
+.kn-abschnitt{background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:16px 22px; margin-bottom:16px}
+.kn-titel{font-size:.72rem; font-weight:700; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--gedaempft); margin:0 0 12px}
+/* Der Satz ist hier das Hauptelement, nicht die Beschriftung: nicht die nackte
+   Zahl, sondern ihre Einordnung. */
+.kn-satz{font-size:.92rem; margin:0 0 10px; color:var(--tinte)}
+.kn-satz.gedaempft{color:var(--gedaempft); font-size:.84rem}
+.kn-satz b{color:var(--akzent); font-weight:700;
+  font-variant-numeric:tabular-nums}
+.kn-paar{display:flex; flex-wrap:wrap; gap:10px; margin:0 0 12px}
+.kn-kachel{flex:1 1 150px; border:1px solid var(--linie); border-radius:10px;
+  padding:10px 14px; background:var(--grund)}
+.kn-kachel .k{display:block; font-size:.74rem; color:var(--gedaempft)}
+.kn-gross{font-size:1.35rem; font-weight:750; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.kn-marke{display:inline-block; border:1px solid var(--linie); border-radius:20px;
+  padding:1px 9px; font-size:.72rem; color:var(--gedaempft); margin-left:6px;
+  vertical-align:middle}
+
+/* --- gestapelter Balken, reines CSS ---------------------------------------
+   flex-grow statt Prozentbreiten: der Browser teilt exakt auf, und es gibt
+   keine Rundungsluecke am Ende. min-width haelt eine einzelne Gegenstelle
+   unter hundert sichtbar. */
+.kn-balken{display:flex; height:15px; border-radius:8px; overflow:hidden;
+  background:var(--linie); margin:4px 0 14px}
+.kn-teil{min-width:4px; flex-basis:0}
+.kn-teil + .kn-teil{border-left:1px solid var(--flaeche)}
+.kn-ipv4{background:color-mix(in srgb, var(--akzent) 92%, transparent)}
+.kn-ipv6{background:color-mix(in srgb, var(--akzent) 55%, transparent)}
+/* Anonymisierende Netze in der guten Farbe - das ist keine Zierde, sondern
+   die Aussage: sie sind der Unterschied zwischen sichtbar und unsichtbar. */
+.kn-onion{background:color-mix(in srgb, var(--gut) 95%, transparent)}
+.kn-i2p{background:color-mix(in srgb, var(--gut) 62%, transparent)}
+.kn-cjdns{background:color-mix(in srgb, var(--gut) 38%, transparent)}
+.kn-not_publicly_routable{background:var(--gedaempft)}
+.kn-legende{display:flex; flex-wrap:wrap; gap:6px 16px; margin:0 0 4px}
+.kn-lpunkt{width:9px; height:9px; border-radius:3px; flex:none}
+.kn-leintrag{display:flex; align-items:center; gap:7px; font-size:.8rem}
+.kn-leintrag .z{font-variant-numeric:tabular-nums; color:var(--gedaempft)}
+.kn-leer{opacity:.45}
+
+/* --- Fortschrittsbalken (Soft-Forks, Uploadlimit, Aufholen) --- */
+.kn-schiene{height:9px; border-radius:6px; background:var(--linie);
+  overflow:hidden; margin:6px 0 4px}
+.kn-fuellung{height:100%; background:var(--akzent); border-radius:6px;
+  animation:kn-wachsen .7s ease-out}
+.kn-fuellung.gut{background:var(--gut)}
+.kn-fuellung.schlecht{background:var(--schlecht)}
+@keyframes kn-wachsen{from{transform:scaleX(0); transform-origin:left}
+  to{transform:scaleX(1); transform-origin:left}}
+@media (prefers-reduced-motion: reduce){
+  .kn-fuellung{animation:none}
+  .kn-mehr summary{transition:none}
+}
+
+/* --- Aufklappliste und Tabelle --- */
+.kn-mehr{margin-top:10px; border-top:1px solid var(--linie); padding-top:10px}
+.kn-mehr summary{cursor:pointer; font-size:.82rem; color:var(--gedaempft);
+  list-style:none}
+.kn-mehr summary::-webkit-details-marker{display:none}
+.kn-mehr summary::before{content:"+ "; color:var(--akzent); font-weight:700}
+.kn-mehr[open] summary::before{content:"\2212 "}
+.kn-mehr summary:hover{color:var(--tinte)}
+.kn-rollen{overflow-x:auto; margin-top:10px}
+.kn-tabelle{width:100%; border-collapse:collapse; font-size:.8rem}
+.kn-tabelle th{text-align:left; font-weight:600; color:var(--gedaempft);
+  font-size:.72rem; padding:4px 10px 4px 0; border-bottom:1px solid var(--linie);
+  white-space:nowrap}
+.kn-tabelle td{padding:4px 10px 4px 0; border-bottom:1px solid var(--linie);
+  white-space:nowrap}
+.kn-tabelle td.zahl{text-align:right; font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.kn-tabelle tr:last-child td{border-bottom:none}
+.kn-fussnote{font-size:.76rem; color:var(--gedaempft); margin:8px 0 0}
+.kn-warnung{border:1px solid var(--schlecht); border-left-width:4px;
+  border-radius:10px; padding:10px 16px; margin-bottom:16px;
+  background:var(--flaeche)}
+.kn-warnung p{margin:0; font-size:.84rem}
+.kn-warnung .quelle{font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:.78rem; color:var(--schlecht); word-break:break-word}
+</style>
+
+{#- Eine Menge ({wert, einheit, stellen}) sprachrichtig ausgeben. Die Zahl geht
+    IMMER durch t.zahl, das Einheitenzeichen ist SI und in beiden Sprachen
+    gleich. Fehlt der Wert, steht hier der Strich - nie eine Schaetzung. -#}
+{% macro menge(m) %}{% if m %}{{ t.zahl(m.wert, m.stellen) }} {{ m.einheit }}{% else %}{{ t.t("value.missing") }}{% endif %}{% endmacro %}
+
+{% macro netzname(s) %}{{ t.t("net." + s) }}{% endmacro %}
+
+<h1 class="objekt">{{ t.t("node.title") }}</h1>
+<p class="kn-unterzeile">{{ t.t("node.subtitle") }}</p>
+
+{% if not k.erreichbar %}
+  {# Alle Quellen stumm - hier ist die leere Seite die ehrliche Antwort. #}
+  <div class="kn-warnung"><p>{{ t.t("node.unreachable") }}</p></div>
+{% else %}
+
+{% for w in k.warnungen %}
+<div class="kn-warnung">
+  <p>{{ t.t("node.warning") }}</p>
+  <p class="quelle">{{ w }}</p>
+</div>
+{% endfor %}
+{% if k.netzwerk_aktiv is false %}
+<div class="kn-warnung"><p>{{ t.t("node.netoff") }}</p></div>
+{% endif %}
+
+<!-- ------------------------------------------------ 1. Der Knoten selbst -->
+<section class="kn-abschnitt">
+  <h2 class="kn-titel">{{ t.t("node.software") }}</h2>
+  <p class="kn-satz">
+    {%- if k.software %}<b>{{ k.software }}</b>
+      {%- if k.protokoll %}<span class="kn-marke">{{ t.t("node.protocol", n=k.protokoll) }}</span>{% endif -%}
+    {%- else %}{{ t.t("value.missing") }}{% endif -%}
+  </p>
+  <p class="kn-satz gedaempft">
+    {%- if k.kette == "main" %}{{ t.t("node.chain.main") }}
+    {%- elif k.kette %}{{ t.t("node.chain.other", name=k.kette) }}
+    {%- else %}{{ t.t("value.missing") }}{% endif -%}
+  </p>
+
+  <div class="zeile">
+    <span class="k">{{ t.t("block.height") }}</span>
+    <span class="w hell">{{ t.zahl(k.hoehe) }}
+      {# Einzahl und Mehrzahl haben eigene Schluessel. Beide Sprachen kennen
+         genau zwei Formen, und "1 Blöcke" ist der Fehler, den man am Ende
+         nicht mehr los wird. #}
+      {% if k.rueckstand %}<span class="nebensatz">
+        {{- t.t("node.headers.behind.one") if k.rueckstand == 1
+            else t.t("node.headers.behind", n=t.zahl(k.rueckstand)) -}}
+      </span>{% endif %}
+    </span>
+  </div>
+
+  {% if k.holt_auf and k.fortschritt is not none %}
+  <div class="zeile">
+    <span class="k">{{ t.t("node.progress") }}</span>
+    <span class="w">{{ t.zahl(k.fortschritt * 100, 4) }} %</span>
+  </div>
+  <div class="kn-schiene">
+    <div class="kn-fuellung" style="width:{{ (k.fortschritt * 100) | round(2) }}%"></div>
+  </div>
+  {% endif %}
+
+  <div class="zeile">
+    <span class="k">{{ t.t("node.disk") }}</span>
+    <span class="w">{{ menge(k.platte) }}
+      <span class="nebensatz">
+        {%- if k.beschnitten %}{{ t.t("node.disk.pruned", h=t.zahl(k.prune_ab)) }}
+        {%- elif k.platte %}{{ t.t("node.disk.full") }}{% endif -%}
+      </span>
+    </span>
+  </div>
+
+  <div class="zeile">
+    <span class="k">{{ t.t("node.difficulty") }}</span>
+    <span class="w">{{ menge(k.schwierigkeit) }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("node.hashrate") }}</span>
+    <span class="w">{{ menge(k.hashrate) }}
+      <span class="nebensatz">{{ t.t("node.hashrate.about") }}</span>
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("node.relayfee") }}</span>
+    <span class="w">
+      {%- if k.relaygebuehr is not none %}{{ t.zahl(k.relaygebuehr, 2) }} {{ t.t("unit.satvb") }}
+      {%- else %}{{ t.t("value.missing") }}{% endif %}
+      <span class="nebensatz">{{ t.t("node.relayfee.about") }}</span>
+    </span>
+  </div>
+</section>
+
+<!-- --------------------------------------------------------- 2. Verkehr -->
+<section class="kn-abschnitt">
+  <h2 class="kn-titel">{{ t.t("traffic.title") }}</h2>
+  {% if k.verkehr %}
+  <p class="kn-satz">{{ t.t("traffic.given", menge=menge(k.verkehr.gesendet) | trim) }}</p>
+  <div class="kn-paar">
+    <div class="kn-kachel">
+      <span class="k">{{ t.t("traffic.sent") }}</span>
+      <span class="kn-gross">{{ menge(k.verkehr.gesendet) }}</span>
+    </div>
+    <div class="kn-kachel">
+      <span class="k">{{ t.t("traffic.received") }}</span>
+      <span class="kn-gross">{{ menge(k.verkehr.empfangen) }}</span>
+    </div>
+  </div>
+  <p class="kn-satz gedaempft">
+    {%- if k.verkehr.gibt_mehr and k.verkehr.verhaeltnis %}
+      {{ t.t("traffic.ratio.giver", n=t.zahl(k.verkehr.verhaeltnis, 2)) }}
+    {%- else %}{{ t.t("traffic.ratio.taker") }}{% endif -%}
+  </p>
+
+  {% if k.verkehr.grenze %}
+  <div class="zeile">
+    <span class="k">{{ t.t("traffic.limit") }}</span>
+    <span class="w">{{ menge(k.verkehr.grenze) }}</span>
+  </div>
+  <div class="kn-schiene">
+    <div class="kn-fuellung {{ 'schlecht' if k.verkehr.grenze_erreicht else '' }}"
+         style="width:{{ k.verkehr.grenze_breite }}%"></div>
+  </div>
+  <p class="kn-satz gedaempft">
+    {%- if k.verkehr.grenze_erreicht %}{{ t.t("traffic.limit.reached") }}
+    {%- else %}{{ t.t("traffic.limit.left", menge=menge(k.verkehr.rest) | trim) }}{% endif -%}
+  </p>
+  {% else %}
+  <p class="kn-satz gedaempft">{{ t.t("traffic.nolimit") }}</p>
+  {% endif %}
+  {% else %}
+  <p class="kn-satz gedaempft">{{ t.t("value.missing") }}</p>
+  {% endif %}
+</section>
+
+<!-- ---------------------------------------------------- 3. Gegenstellen -->
+<section class="kn-abschnitt">
+  <h2 class="kn-titel">{{ t.t("peers.title") }}</h2>
+  {% if k.gegenstellen is none %}
+  <p class="kn-satz gedaempft">{{ t.t("value.missing") }}</p>
+  {% elif k.gegenstellen.anzahl == 0 %}
+  <p class="kn-satz">{{ t.t("peers.none") }}</p>
+  {% else %}
+  {% set g = k.gegenstellen %}
+  <p class="kn-satz">
+    {%- if g.anzahl == 1 %}{{ t.t("peers.summary.single") }}
+    {%- elif g.anonym %}{{ t.t("peers.summary.anon", n=t.zahl(g.anzahl), a=t.zahl(g.anonym)) }}
+    {%- else %}{{ t.t("peers.summary.plain", n=t.zahl(g.anzahl)) }}{% endif -%}
+  </p>
+
+  {# Ein Balken aus Kaesten - kein Diagrammwerkzeug, kein Skript. #}
+  <div class="kn-balken" role="img" aria-label="{% for n in g.netze %}{{ netzname(n.schluessel) | trim }}: {{ t.zahl(n.anzahl) }}{{ ", " if not loop.last }}{% endfor %}">
+    {%- for n in g.netze if n.anzahl -%}
+    <div class="kn-teil kn-{{ n.schluessel }}" style="flex-grow:{{ n.anzahl }}"
+         title="{{ netzname(n.schluessel) | trim }}: {{ t.zahl(n.anzahl) }}"></div>
+    {%- endfor -%}
+  </div>
+  <div class="kn-legende">
+    {% for n in g.netze %}
+    <span class="kn-leintrag {{ 'kn-leer' if not n.anzahl }}">
+      <span class="kn-lpunkt kn-{{ n.schluessel }}"></span>
+      {{ netzname(n.schluessel) }}
+      <span class="z">{{ t.zahl(n.anzahl) }}{% if n.anteil is not none and n.anzahl %} · {{ t.zahl(n.anteil, 0) }} %{% endif %}</span>
+    </span>
+    {% endfor %}
+  </div>
+
+  {# Der Datenschutz-Befund: was diese Verteilung fuer den Nutzer bedeutet. #}
+  <p class="kn-satz">
+    {%- if g.anonym == g.anzahl %}{{ t.t("peers.anon.all") }}
+    {%- elif g.anonym %}{{ t.t("peers.anon.some", p=t.zahl(g.anonym_anteil, 0)) }}
+    {%- else %}{{ t.t("peers.anon.none") }}{% endif -%}
+  </p>
+  {% for s in g.stille %}
+  <p class="kn-satz gedaempft">{{ t.t("peers.silent", netz=netzname(s) | trim) }}</p>
+  {% endfor %}
+
+  <div class="zeile">
+    <span class="k">{{ t.t("peers.direction") }}</span>
+    <span class="w">{{ t.zahl(g.eingehend) }} / {{ t.zahl(g.ausgehend) }}
+      <span class="nebensatz">
+        {%- if g.eingehend == 1 %}{{ t.t("peers.inbound.yes.one") }}
+        {%- elif g.eingehend %}{{ t.t("peers.inbound.yes", n=t.zahl(g.eingehend)) }}
+        {%- else %}{{ t.t("peers.inbound.no") }}{% endif -%}
+      </span>
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("peers.ping") }}</span>
+    <span class="w">
+      {%- if g.ping_mitte is not none %}{{ t.zahl(g.ping_mitte, 0) }} ms
+        <span class="nebensatz">{{ t.t("peers.ping.range",
+          best=t.zahl(g.ping_best, 0), mid=t.zahl(g.ping_mitte, 0),
+          worst=t.zahl(g.ping_schlecht, 0)) }}</span>
+      {%- else %}{{ t.t("value.missing") }}{% endif -%}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("peers.encrypted") }}</span>
+    <span class="w">{{ t.zahl(g.verschluesselt) }} / {{ t.zahl(g.anzahl) }}
+      <span class="nebensatz">
+        {%- if g.verschluesselt == g.anzahl %}{{ t.t("peers.v2.all") }}
+        {%- elif g.verschluesselt %}{{ t.t("peers.v2.some", p=t.zahl(g.verschluesselt_anteil, 0)) }}
+        {%- else %}{{ t.t("peers.v2.none") }}{% endif -%}
+      </span>
+    </span>
+  </div>
+
+  {% if g.nur_bloecke %}
+  <p class="kn-satz gedaempft">
+    {{- t.t("peers.blocksonly.one") if g.nur_bloecke == 1
+        else t.t("peers.blocksonly", n=t.zahl(g.nur_bloecke)) -}}
+  </p>
+  {% endif %}
+  {% if g.manuell %}
+  <p class="kn-satz gedaempft">{{ t.t("peers.manual", n=t.zahl(g.manuell)) }}</p>
+  {% endif %}
+  {% if g.aelteste_stunden is not none %}
+  <p class="kn-satz gedaempft">
+    {%- if g.aelteste_stunden >= 48 %}{{ t.t("peers.oldest.days", n=t.zahl(g.aelteste_stunden / 24, 1)) }}
+    {%- else %}{{ t.t("peers.oldest.hours", n=t.zahl(g.aelteste_stunden, 1)) }}{% endif -%}
+  </p>
+  {% endif %}
+
+  {% if g.software %}
+  <div class="kn-mehr" style="border-top:none">
+    <p class="kn-titel" style="margin:6px 0 6px">{{ t.t("peers.software") }}</p>
+    <div class="kn-legende">
+      {% for s in g.software %}
+      <span class="kn-leintrag">{{ s.name }} <span class="z">{{ t.zahl(s.anzahl) }}</span></span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <details class="kn-mehr">
+    <summary>{{ t.t("peers.show") }}</summary>
+    <p class="kn-fussnote">{{ t.t("peers.noaddr") }}</p>
+    <div class="kn-rollen">
+      <table class="kn-tabelle">
+        <thead><tr>
+          <th>{{ t.t("peers.net") }}</th>
+          <th>{{ t.t("peers.dircol") }}</th>
+          <th style="text-align:right">{{ t.t("peers.ping") }}</th>
+          <th>{{ t.t("peers.softwarecol") }}</th>
+          <th>{{ t.t("peers.transport") }}</th>
+        </tr></thead>
+        <tbody>
+        {% for e in g.liste %}
+        <tr>
+          <td>{{ netzname(e.netz) }}</td>
+          <td>{{ t.t("peers.in") if e.eingehend else t.t("peers.out") }}</td>
+          <td class="zahl">{% if e.ping_ms is not none %}{{ t.zahl(e.ping_ms, 0) }}{% else %}{{ t.t("value.missing") }}{% endif %}</td>
+          <td>{{ e.software or t.t("value.missing") }}</td>
+          <td>{{ "v2" if e.v2 else "v1" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+</section>
+
+<!-- -------------------------------------------------- 4. Kettenspitzen -->
+<section class="kn-abschnitt">
+  <h2 class="kn-titel">{{ t.t("tips.title") }}</h2>
+  {% if k.spitzen is none %}
+  <p class="kn-satz gedaempft">{{ t.t("value.missing") }}</p>
+  {% else %}
+  <p class="kn-satz">
+    {%- if k.spitzen.zweige == 1 %}{{ t.t("tips.many.one", n=t.zahl(k.spitzen.anzahl)) }}
+    {%- elif k.spitzen.zweige %}{{ t.t("tips.many", n=t.zahl(k.spitzen.anzahl), f=t.zahl(k.spitzen.zweige)) }}
+    {%- else %}{{ t.t("tips.one") }}{% endif -%}
+  </p>
+  <p class="kn-satz gedaempft">{{ t.t("tips.about") }}</p>
+  {% if k.spitzen.liste %}
+  <div class="kn-rollen">
+    <table class="kn-tabelle">
+      <thead><tr>
+        <th style="text-align:right">{{ t.t("tips.height") }}</th>
+        <th style="text-align:right">{{ t.t("tips.length") }}</th>
+        <th>{{ t.t("tips.state") }}</th>
+      </tr></thead>
+      <tbody>
+      {% for s in k.spitzen.liste %}
+      <tr>
+        <td class="zahl">{{ t.zahl(s.hoehe) }}</td>
+        {# Nur die Zahl: die Spaltenueberschrift sagt schon "Laenge", und so
+           gibt es kein "1 Bloecke". #}
+        <td class="zahl">{{ t.zahl(s.laenge) }}</td>
+        {# Unbekannter Zustand: lieber der Rohwert von bitcoind als ein
+           sichtbarer fehlender Schluessel. #}
+        <td>{{ t.t("tips.state." + s.stand_schluessel) if s.stand_schluessel else s.stand }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if k.spitzen.weitere %}
+  <p class="kn-fussnote">
+    {{- t.t("tips.more.one") if k.spitzen.weitere == 1
+        else t.t("tips.more", n=t.zahl(k.spitzen.weitere)) -}}
+  </p>
+  {% endif %}
+  {% endif %}
+  {% endif %}
+</section>
+
+<!-- ------------------------------------------------------ 5. Soft-Forks -->
+<section class="kn-abschnitt">
+  <h2 class="kn-titel">{{ t.t("forks.title") }}</h2>
+  {% if k.softforks is none %}
+  <p class="kn-satz gedaempft">{{ t.t("value.missing") }}</p>
+  {% else %}
+
+  {% for f in k.softforks.laufend %}
+  <p class="kn-satz"><b>{{ f.anzeige }}</b>
+    <span class="kn-marke">{{ t.t("forks.state." + f.stand) if f.stand else "" }}</span>
+    {% if f.bit is not none %}<span class="kn-marke">{{ t.t("forks.bit", n=f.bit) }}</span>{% endif %}
+  </p>
+  {% if f.breite is not none %}
+  <div class="kn-schiene">
+    <div class="kn-fuellung {{ 'schlecht' if f.moeglich is false else 'gut' }}"
+         style="width:{{ f.breite }}%"></div>
+  </div>
+  {% endif %}
+  <p class="kn-satz gedaempft">
+    {%- if f.stand == "locked_in" %}{{ t.t("forks.locked", h=t.zahl(f.ab_hoehe)) }}
+    {%- elif f.signale is not none %}
+      {{ t.t("forks.signalling", count=t.zahl(f.signale), elapsed=t.zahl(f.abgelaufen),
+             threshold=t.zahl(f.schwelle), period=t.zahl(f.periode)) }}
+      {% if f.moeglich is false %}{{ t.t("forks.impossible") }}{% endif %}
+    {%- endif -%}
+  </p>
+  {% endfor %}
+
+  {% if k.softforks.alle_aktiv %}
+  <p class="kn-satz">{{ t.t("forks.allactive") }}</p>
+  {% endif %}
+
+  {% for f in k.softforks.aktiv %}
+  <div class="zeile">
+    <span class="k">{{ f.anzeige }}
+      {% if f.erklaerung %}<span class="nebensatz">{{ t.t(f.erklaerung) }}</span>{% endif %}
+    </span>
+    <span class="w">
+      {%- if f.hoehe is not none %}{{ t.t("forks.active_since", h=t.zahl(f.hoehe)) }}
+        {% if f.abstand %}<span class="nebensatz">
+          {{- t.t("forks.blocks_ago.one") if f.abstand == 1
+              else t.t("forks.blocks_ago", n=t.zahl(f.abstand)) -}}
+        </span>{% endif %}
+      {%- else %}{{ t.t("forks.state.active") }}{% endif -%}
+    </span>
+  </div>
+  {% endfor %}
+
+  {% if k.softforks.ruhend %}
+  <p class="kn-fussnote">
+    {%- for f in k.softforks.ruhend -%}
+    {{ f.anzeige }}{% if f.stand %} ({{ t.t("forks.state." + f.stand) }}){% endif %}{{ " · " if not loop.last }}
+    {%- endfor -%}
+  </p>
+  {% endif %}
+  {% endif %}
+</section>
+
+{% endif %}
+{% endblock %}

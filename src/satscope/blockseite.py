@@ -190,7 +190,11 @@ def _urteil(wert, reihe):
         klasse = "unter"
     else:
         klasse = "ueber"
+    # "p" ist der Betrag der Abweichung und IMMER eine Zahl. Die Vorlage soll
+    # nicht mit einem abs-Filter auf einem moeglichen None hantieren muessen -
+    # das waere ein Absturz genau dann, wenn die Vergleichsmitte null ist.
     return {"klasse": klasse, "mitte": mitte, "abweichung": abweichung,
+            "p": abs(abweichung) if abweichung is not None else 0.0,
             "n": len(reihe)}
 
 
@@ -299,6 +303,10 @@ def _zusammensetzen(kopf, stats, reihe, vorgaenger_zeit, spitze, verwaist,
     genau dieser Teil ohne Knoten pruefbar ist."""
     s = stats or {}
     hoehe = kopf.get("height")
+    # Aus dem Kopf abgeleitet statt durch die Signatur gereicht: der erste
+    # Entwurf griff hier auf eine Variable aus blockdaten() zu, die es in
+    # dieser Funktion gar nicht gibt - NameError bei JEDEM Blockaufruf.
+    bestaetigungen = kopf.get("confirmations")
     zeit = kopf.get("time")
     blockhash = kopf.get("hash")
 

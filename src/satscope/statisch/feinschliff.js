@@ -24,13 +24,15 @@
   // ------------------------------------------------------------- Textvorrat
   var TEXTE = (function () {
     var q = document.getElementById("satscope-texte");
+    // Vorsatz "data-text-", damit der Textvorrat nicht selbst in das
+    // Suchmuster [data-kopieren] der Kopierknoepfe faellt.
     function lies(name) {
-      return (q && q.getAttribute("data-" + name)) || "";
+      return (q && q.getAttribute("data-text-" + name)) || "";
     }
     return {
       kopieren: lies("kopieren"),
       kopiert: lies("kopiert"),
-      fehler: lies("kopieren-fehler"),
+      fehler: lies("fehler"),
       wertFehlt: lies("wert-fehlt"),
       wertLaedt: lies("wert-laedt")
     };
@@ -320,6 +322,10 @@
 
   document.addEventListener("keydown", function (e) {
     if (e.altKey || e.ctrlKey || e.metaKey) return;
+    /* Die Umschalttaste meldet sich mit einem eigenen keydown, BEVOR das
+       Zeichen kommt. Ohne diese Zeile bricht sie jede angefangene Kette ab -
+       und "?" ist auf beiden Tastaturen ein Umschalt-Zeichen. */
+    if (e.key === "Shift") return;
 
     // Esc wirkt AUCH im Eingabefeld - das ist ja gerade sein Zweck.
     if (e.key === "Escape") {
@@ -370,7 +376,12 @@
 
     if (taste === "c") {
       // Kopiert die Hauptkennung der Seite - auf der Adressseite die Adresse.
-      var haupt = document.querySelector(".kennung[data-kopieren],[data-kopieren]");
+      // Zwei getrennte Abfragen, KEINE Auswahlliste: eine Liste waehlt das im
+      // Dokument zuerst stehende Element, nicht das zuerst genannte Muster -
+      // die Kennung haette also gegen irgendein frueheres data-kopieren
+      // verloren.
+      var haupt = document.querySelector(".kennung[data-kopieren]") ||
+                  document.querySelector("[data-kopieren]");
       if (haupt) {
         e.preventDefault();
         kopiere(haupt.getAttribute("data-kopieren"), haupt.querySelector(".kopieren"));

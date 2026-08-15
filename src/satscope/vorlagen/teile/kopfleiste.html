@@ -144,13 +144,18 @@
   Textvorrat fuer feinschliff.js. Das JavaScript darf keine eigenen Saetze
   fuehren - sonst gaebe es einen zweiten, unuebersetzten Textkatalog, der beim
   naechsten Sprachwechsel still englisch bleibt. Hier kommt alles aus t.t().
+
+  Der Vorsatz "data-text-" ist Absicht und kein Schmuck: der Kopierknopf sucht
+  seine Ziele ueber [data-kopieren], und ein Textvorrat mit genau diesem
+  Attribut haette sich selbst einen Kopierknopf eingehandelt - "c" haette dann
+  das Wort "Kopieren" in die Zwischenablage gelegt.
 #}
 <span id="satscope-texte" hidden
-      data-kopieren="{{ t.t('copy.action') }}"
-      data-kopiert="{{ t.t('copy.done') }}"
-      data-kopieren-fehler="{{ t.t('copy.failed') }}"
-      data-wert-fehlt="{{ t.t('value.unavailable') }}"
-      data-wert-laedt="{{ t.t('value.loading') }}"></span>
+      data-text-kopieren="{{ t.t('copy.action') }}"
+      data-text-kopiert="{{ t.t('copy.done') }}"
+      data-text-fehler="{{ t.t('copy.failed') }}"
+      data-text-wert-fehlt="{{ t.t('value.unavailable') }}"
+      data-text-wert-laedt="{{ t.t('value.loading') }}"></span>
 
 {# Eine einzige Live-Region fuer die ganze Seite. Rueckmeldungen wie "Kopiert"
    sind sonst NUR sichtbar - wer nicht hinsieht, erfaehrt nie, ob es geklappt

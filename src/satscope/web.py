@@ -11,7 +11,8 @@ ein unbedachter Handler waere ein Denial-of-Service gegen den eigenen Node.
 import asyncio
 import os
 
-from . import adresse, elektrum, knoten, lage, tiefenkarte
+from . import (adresse, blockseite, elektrum, kette, knoten, knotenseite,
+               lage, tiefenkarte, txseite)
 from .rpc import BILLIG, Tor
 from .sprache import COOKIE, COOKIE_ALTER, SPRACHEN, Texte, sprache_aus_cookies
 
@@ -115,6 +116,35 @@ def erzeuge_app():
             "suchwert": wert, "fehler": t.t("search.unknown") if wert else None,
         }, status_code=404 if wert else 200)
 
+    async def knotenseite_(request):
+        t = Texte(sprache_aus_cookies(request.cookies))
+        return vorlagen.TemplateResponse(request, "knoten.html", {
+            "t": t, "pfad": request.url.path,
+            "k": await knotenseite.seite(TOR),
+        })
+
+    async def blockseite_(request):
+        t = Texte(sprache_aus_cookies(request.cookies))
+        b = await blockseite.blockdaten(TOR, request.path_params["kennung"],
+                                        t.sprache)
+        # Ein unbekannter Block ist kein Serverfehler, aber auch kein Treffer:
+        # 404 ist die ehrliche Antwort und haelt Suchmaschinen davon ab,
+        # erfundene Hoehen zu indizieren.
+        return vorlagen.TemplateResponse(
+            request, "block.html", {"t": t, "pfad": request.url.path, "b": b},
+            status_code=200 if b.get("gefunden") else 404)
+
+    async def txseite_(request):
+        t = Texte(sprache_aus_cookies(request.cookies))
+        d = await txseite.transaktion(TOR, request.path_params["txid"])
+        return vorlagen.TemplateResponse(request, "tx.html", {
+            "t": t, "pfad": request.url.path, "d": d,
+            "befunde": txseite.befunde(d, t) if d and d.get("gefunden") else [],
+            "btc": lambda s: _btc_lokal(s, t),
+            "dauer": lambda s: _dauer_text(s, t.sprache),
+            "spanne": lambda s: txseite.spanne(s, t),
+        }, status_code=200 if (d and d.get("gefunden")) else 404)
+
     async def sprache_setzen(request):
         wahl = request.path_params["sprache"]
         ziel = request.query_params.get("weiter", "/")
@@ -131,6 +161,10 @@ def erzeuge_app():
         Route("/", startseite),
         Route("/suche", suche),
         Route("/address/{adresse}", adressseite),
+        Route("/node", knotenseite_),
+        Route("/block/{kennung}", blockseite_),
+        Route("/tx/{txid}", txseite_),
+        Route("/api/kette", kette.handler(TOR)),
         Route("/sprache/{sprache}", sprache_setzen),
         Mount("/statisch", StaticFiles(directory=os.path.join(HIER, "statisch")),
               name="statisch"),

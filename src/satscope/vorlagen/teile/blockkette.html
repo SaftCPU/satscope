@@ -1,0 +1,137 @@
+{#
+  Das Live-Band der letzten Bloecke. Einbinden mit
+
+      {% include "teile/blockkette.html" %}
+
+  Der Teil braucht NICHTS aus dem Zusammenhang ausser `t` - kein Handler muss
+  Daten vorbereiten, das Band holt sie sich selbst von /api/kette. Optional:
+    blockziel  Praefix fuer den Klick, Vorgabe "/block/". Leer setzen, solange
+               es die Blockseite noch nicht gibt - dann sind die Bloecke
+               ansehnlich, aber nicht klickbar (ein toter Link ist der erste
+               Klick eines jeden Pruefers).
+    kette_url  woher die Zahlen kommen, Vorgabe "/api/kette".
+
+  ⚠️ ALLE sichtbaren Texte stehen im Katalog, auch die des JavaScripts: sie
+  reisen in data-texte mit. Das JavaScript darf keinen einzigen deutschen oder
+  englischen Satz enthalten, sonst bricht die Zweisprachigkeit genau dort, wo
+  sie niemand nachprueft.
+#}
+{% set kette_texte = {
+  "mempool":        t.t("mempool.size"),
+  "warten":         t.t("chain.waiting_txs"),
+  "rueckstau":      t.t("chain.backlog"),
+  "eintritt":       t.t("chain.entry_fee"),
+  "schaetzung":     t.t("chain.estimate"),
+  "leer":           t.t("chain.mempool_empty"),
+  "txs":            t.t("chain.txs"),
+  "mb":             t.t("chain.megabytes"),
+  "spanne":         t.t("chain.fee_range"),
+  "median":         t.t("chain.fee_median"),
+  "schnitt":        t.t("chain.fee_avg"),
+  "voll":           t.t("chain.full"),
+  "belohnung":      t.t("chain.reward"),
+  "gebuehren":      t.t("chain.fees_total"),
+  "einaus":         t.t("chain.in_out"),
+  "jetzt":          t.t("chain.age_now"),
+  "sek":            t.t("chain.age_sec"),
+  "min":            t.t("chain.age_min"),
+  "std":            t.t("chain.age_hour"),
+  "nachher":        t.t("chain.after_prev"),
+  "nachher_kurz":   t.t("chain.after_prev_fast"),
+  "billigster":     t.t("chain.cheapest"),
+  "teuerster":      t.t("chain.dearest"),
+  "fenstermitte":   t.t("chain.window_median"),
+  "perzentile":     t.t("chain.percentiles"),
+  "zusammen":       t.t("chain.summary"),
+  "oeffnen":        t.t("chain.open"),
+  "hoehe":          t.t("block.height"),
+  "hash":           t.t("chain.hash"),
+  "alter":          t.t("block.age"),
+  "keine":          t.t("chain.nodata"),
+  "fehlt":          t.t("value.missing"),
+  "weg":            t.t("state.unreachable")
+} %}
+
+{# Ein Stylesheet im Body ist erlaubt (rel="stylesheet" ist "body-ok"). So
+   bleibt der Teil in sich geschlossen; grundlage.html muss nichts wissen. #}
+<link rel="stylesheet" href="/statisch/blockkette.css">
+
+<section class="kette" id="blockkette"
+         data-quelle="{{ kette_url|default('/api/kette') }}"
+         data-blockziel="{{ blockziel|default('/block/') }}"
+         data-texte='{{ kette_texte|tojson }}'>
+
+  <div class="kette-kopf">
+    <h2 class="kette-titel">{{ t.t("chain.title") }}</h2>
+    <span class="kette-zusammen" id="kette-zusammen"></span>
+  </div>
+
+  <div class="kette-band">
+    {# Der wartende Block steht ausserhalb des Schiebefensters: er ruecht nicht
+       mit, er bleibt und fuellt sich. #}
+    <a class="kb kb-warte" id="kette-warte" tabindex="0">
+      <span class="kb-fuell"><i></i></span>
+      <span class="kb-kopf kb-warte-titel">{{ t.t("mempool.size") }}</span>
+      <span class="kb-gross kb-warte-blocks">{{ t.t("value.missing") }}</span>
+      <span class="kb-med kb-warte-eintritt">{{ t.t("value.missing") }}</span>
+      <span class="kb-klein kb-warte-anzahl">{{ t.t("value.missing") }}</span>
+      <span class="kb-klein kb-warte-mb">{{ t.t("value.missing") }}</span>
+    </a>
+
+    <div class="kette-rahmen" id="kette-rahmen">
+      <div class="kette-reihe" id="kette-reihe">
+        {# Platzhalter, damit beim ersten Laden nichts springt. Die Zahl spiegelt
+           kette.ANZAHL - stimmt sie nicht, ist nur die Skizze kurz zu kurz. #}
+        {% for _ in range(12) %}<span class="kb kb-platz"></span>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {# Die Tafel steht UNTER dem Band und nicht als Sprechblase im Band: ein
+     Rahmen mit overflow-x schneidet jede Sprechblase ab, und auf dem Handy
+     gibt es kein Ueberfahren mit der Maus. Sie zeigt ohne Zutun den neuesten
+     Block - dadurch ist sie nie leer und die Seite springt nicht. #}
+  <div class="kette-tafel" id="kette-tafel" aria-live="polite">
+    <div class="kt-kopf">
+      <span class="kt-hoehe">{{ t.t("value.missing") }}</span>
+      <span class="kt-hash"></span>
+    </div>
+    <p class="kt-satz nebensatz"></p>
+    <div class="kt-gitter">
+      <span class="kt-p"><b class="kt-median">{{ t.t("value.missing") }}</b><i class="kt-spanne"></i></span>
+      <span class="kt-p"><b class="kt-mb">{{ t.t("value.missing") }}</b><i class="kt-voll"></i></span>
+      <span class="kt-p"><b class="kt-txs">{{ t.t("value.missing") }}</b><i class="kt-einaus"></i></span>
+      <span class="kt-p"><b class="kt-alter">{{ t.t("value.missing") }}</b><i class="kt-abstand"></i></span>
+      <span class="kt-p"><b class="kt-belohnung">{{ t.t("value.missing") }}</b><i class="kt-gebuehren"></i></span>
+    </div>
+    <div class="kt-perzentile" title="{{ t.t('chain.percentiles') }}">
+      <i></i><i></i><i></i><i></i><i></i>
+    </div>
+  </div>
+
+  <div class="kette-legende">
+    <span>{{ t.t("chain.cheap") }}</span>
+    <span class="kl-streifen"></span>
+    <span>{{ t.t("chain.dear") }}</span>
+    <span class="kl-hinweis">{{ t.t("chain.legend") }}</span>
+  </div>
+
+  <noscript><p class="kette-hinweis">{{ t.t("chain.needs_js") }}</p></noscript>
+
+  {# Muster fuer einen Block. Ein <template> statt innerHTML im JavaScript:
+     kein einziger Wert wird je als HTML eingesetzt, nur als Text. #}
+  <template id="kette-muster">
+    <a class="kb">
+      <span class="kb-kopf kb-hoehe"></span>
+      <span class="kb-gross kb-med"></span>
+      <span class="kb-med kb-spanne"></span>
+      <span class="kb-klein kb-txs"></span>
+      <span class="kb-klein kb-mb"></span>
+      <span class="kb-fuellbalken"><i></i></span>
+      <span class="kb-alter"></span>
+      <span class="kb-abzeichen"></span>
+    </a>
+  </template>
+</section>
+
+<script src="/statisch/blockkette.js" defer></script>

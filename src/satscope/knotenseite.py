@@ -128,30 +128,60 @@ def _text_saeubern(wert, laenge=40):
     return sauber[:laenge] or None
 
 
-def software_name(subversion):
-    """'/Satoshi:29.0.0/' -> 'Core 29.0'.
-
-    Nur Haupt- und Nebenfassung, damit sich die Gegenstellen ueberhaupt zu
-    Gruppen zusammenfassen lassen - mit Patchstand waeren es dreissig Zeilen.
-    """
+def _zerlege_subver(subversion):
+    """('Satoshi'|'Knots'|..., '29.0.0') aus '/Satoshi:29.0.0/'."""
     sauber = _text_saeubern(subversion, 60)
     if not sauber:
-        return None
+        return None, ""
     teile = [t for t in sauber.strip("/").split("/") if t]
     if not teile:
-        return None
+        return None, ""
     letzt = teile[-1]
     name, _, fassung = letzt.partition(":")
     # Knots meldet sich als "Satoshi:27.1.0(knots20240801)" - es IST nicht Core.
     if "knots" in letzt.lower():
         name = "Knots"
-    elif name == "Satoshi":
+    # Nur der fuehrende Zahlenteil: "27.1.0(knots20240801)" -> "27.1.0".
+    ziffern = ""
+    for z in fassung:
+        if z.isdigit() or z == ".":
+            ziffern += z
+        else:
+            break
+    return (name or None), ziffern.strip(".")
+
+
+def software_name(subversion):
+    """'/Satoshi:29.0.0/' -> 'Core 29.0'.
+
+    Nur Haupt- und Nebenfassung, damit sich die GEGENSTELLEN ueberhaupt zu
+    Gruppen zusammenfassen lassen - mit Patchstand waeren es dreissig Zeilen
+    mit je einer Gegenstelle darin.
+    """
+    name, fassung = _zerlege_subver(subversion)
+    if not name:
+        return None
+    if name == "Satoshi":
         name = "Core"
-    zahlen = ""
-    if fassung:
-        stuecke = fassung.split(".")[:2]
-        zahlen = ".".join(s for s in stuecke if s.strip("0123456789") == "")
-    return (name + " " + zahlen).strip() or None
+    return (name + " " + ".".join(fassung.split(".")[:2])).strip() or None
+
+
+def eigene_software(subversion):
+    """'/Satoshi:29.0.0/' -> 'Bitcoin Core 29.0.0'.
+
+    Beim EIGENEN Knoten mit vollem Patchstand - man will genau wissen, was da
+    laeuft, und gruppiert wird hier nichts. Laesst sich die Angabe nicht
+    zerlegen, steht die gesaeuberte Rohform da: besser als ein Strich, denn die
+    Zeile ist ja beantwortet, nur nicht in unserer Form.
+    """
+    name, fassung = _zerlege_subver(subversion)
+    if not name:
+        return _text_saeubern(subversion, 40)
+    if name == "Satoshi":
+        name = "Bitcoin Core"
+    elif name == "Knots":
+        name = "Bitcoin Knots"
+    return (name + " " + fassung).strip()
 
 
 def _liste(wert):
@@ -461,7 +491,7 @@ async def seite(tor, jetzt=None):
         # "erreichbar" ist bewusst nicht an EINEN Aufruf gebunden: solange
         # irgendeine Quelle antwortet, hat die Seite etwas zu zeigen.
         "erreichbar": any(x is not None for x in (netz, kette, mining)),
-        "software": _text_saeubern((netz or {}).get("subversion"), 40),
+        "software": eigene_software((netz or {}).get("subversion")),
         "protokoll": (netz or {}).get("protocolversion"),
         "netzwerk_aktiv": (netz or {}).get("networkactive"),
         "warnungen": _liste((kette or {}).get("warnings")) or
@@ -556,6 +586,13 @@ def _selbsttest():
     pruefe("Hashrate", _skaliert(9.1e20, "H/s")["einheit"], "EH/s")
     pruefe("Hashrate, eine Stufe hoeher", _skaliert(1.2e21, "H/s")["einheit"], "ZH/s")
     pruefe("Software-Name", software_name("/Satoshi:29.0.0/"), "Core 29.0")
+    pruefe("eigener Knoten mit vollem Stand",
+           eigene_software("/Satoshi:29.0.0/"), "Bitcoin Core 29.0.0")
+    pruefe("eigener Knoten, Knots erkannt",
+           eigene_software("/Satoshi:27.1.0(knots20240801)/"),
+           "Bitcoin Knots 27.1.0")
+    pruefe("unzerlegbare Angabe bleibt roh",
+           eigene_software("etwas Fremdes"), "etwas Fremdes")
     pruefe("Steuerzeichen raus", _text_saeubern("/Satoshi:2\x079.0/"),
            "/Satoshi:29.0/")
     pruefe("Warnung als String", _liste("alte Fassung"), ["alte Fassung"])

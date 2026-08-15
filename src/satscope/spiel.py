@@ -235,6 +235,9 @@ async def _gebuehren(tor):
         rate = _sat_pro_vb((e or {}).get("feerate"))
         raus.append({
             "ziel": ziel,
+            # Der Textschluessel wandert mit dem Wert, damit die Vorlage nicht
+            # ihrerseits eine Tabelle Ziel -> Wort fuehren muss.
+            "schluessel": "spiel.fee.target%d" % ziel,
             "sat_vb": rate,
             "kosten_sat": int(round(rate * TYPISCHE_VB)) if rate else None,
         })
@@ -320,6 +323,13 @@ async def erhebe(tor, z=None):
         "mempool_min_sat_vb": _sat_pro_vb(z.get("mempool_min_gebuehr")),
     }
 
+    # Startwerte des Tickers. Ohne JavaScript bleiben sie stehen - das ist
+    # eine Momentaufnahme und keine leere Huelse.
+    d["block_alter"] = (int(time.time()) - int(block_zeit)
+                        if block_zeit is not None else None)
+    d["uhr"] = _uhrzeit(d["block_alter"])
+    d["typisch_vb"] = TYPISCHE_VB
+
     d["halbierung"] = _halbierung(hoehe)
     d["anpassung"] = _anpassung(hoehe, block_zeit, kopf_periode, takt,
                                 d["schwierigkeit"])
@@ -327,6 +337,22 @@ async def erhebe(tor, z=None):
     d["block"] = _block(letzter)
     d["schwierigkeit_start"] = _zahl((kopf_halbierung or {}).get("difficulty"))
     return d
+
+
+def _uhrzeit(sekunden):
+    """Stoppuhr als mm:ss bzw. h:mm:ss.
+
+    Bewusst ohne Katalog: Ziffern und Doppelpunkte sind in beiden Sprachen
+    dieselben. spiel.js schreibt ab dem Laden in genau dieser Form weiter.
+    """
+    if sekunden is None:
+        return None
+    sekunden = max(0, int(sekunden))
+    stunden, rest = divmod(sekunden, 3600)
+    minuten, sek = divmod(rest, 60)
+    if stunden:
+        return "%d:%02d:%02d" % (stunden, minuten, sek)
+    return "%02d:%02d" % (minuten, sek)
 
 
 def _halbierung(hoehe):
@@ -425,9 +451,20 @@ def _mempool(z, gebuehren):
 
 
 def _block(letzter):
-    """Was im letzten Block passiert ist."""
+    """Was im letzten Block passiert ist.
+
+    ⚠️ Liefert IMMER alle Schluessel, auch wenn nichts da ist. Jinja macht aus
+    einem fehlenden Schluessel ein Undefined, und `Undefined is not none` ist
+    wahr - eine Abfrage in der Vorlage wuerde also durchlaufen und einen leeren
+    Satz drucken. Ein durchgaengiges None ist die einzige Form, auf die sich
+    die Vorlage verlassen kann.
+    """
+    leer = dict.fromkeys((
+        "hoehe", "txs", "ins", "outs", "gebuehr_sat", "subvention_sat",
+        "fuellung_p", "segwit_p", "gebuehrenanteil_p", "min_sat_vb",
+        "max_sat_vb", "median_sat_vb", "perzentile", "utxo_zuwachs"))
     if not letzter:
-        return {}
+        return leer
     gewicht = _zahl(letzter.get("total_weight"))
     txs = _zahl(letzter.get("txs"))
     sw = _zahl(letzter.get("swtxs"))
@@ -436,7 +473,7 @@ def _block(letzter):
     perzentile = letzter.get("feerate_percentiles")
     if not (isinstance(perzentile, list) and len(perzentile) == 5):
         perzentile = None
-    return {
+    leer.update({
         "hoehe": _zahl(letzter.get("height")),
         "txs": txs,
         "ins": _zahl(letzter.get("ins")),
@@ -454,7 +491,8 @@ def _block(letzter):
         "median_sat_vb": _zahl(perzentile[2]) if perzentile else None,
         "perzentile": perzentile,
         "utxo_zuwachs": _zahl(letzter.get("utxo_increase")),
-    }
+    })
+    return leer
 
 
 # ------------------------------------------------------------ Einordnung
@@ -491,13 +529,26 @@ def einordnen(d):
     d["tempo_klasse"] = _stufe(
         d.get("takt_s"), (480, 720), ("gut", "", "schlecht"))
 
-    # Gebuehrenlage am Ziel "naechster Block".
+    # Gebuehrenlage am Ziel "naechster Block". Die Vorlage bekommt den Eintrag
+    # gleich mit - sonst muesste sie die Liste selbst durchsuchen.
+    d["gebuehr_naechster"] = next(
+        (g for g in d.get("gebuehren") or [] if g.get("ziel") == 1),
+        {"ziel": 1, "sat_vb": None, "kosten_sat": None, "anteil_p": None,
+         "schluessel": "spiel.fee.target1"})
     schnell = _gebuehr_fuer(d, 1)
     d["gebuehr_schluessel"] = _stufe(
         schnell, (2, 5, 20, 100),
         ("spiel.fee.dirtcheap", "spiel.fee.cheap", "spiel.fee.normal",
          "spiel.fee.pricey", "spiel.fee.brutal"))
     d["gebuehr_zeiger_p"] = _zeiger(schnell)
+
+    # Balkenlaengen der Gebuehrenzeile, gemessen am teuersten Ziel. Eine
+    # absolute Skala waere bei 1-2 sat/vB nicht mehr zu unterscheiden.
+    werte = [g["sat_vb"] for g in d.get("gebuehren") or [] if g.get("sat_vb")]
+    hoechste = max(werte) if werte else None
+    for g in d.get("gebuehren") or []:
+        g["anteil_p"] = (g["sat_vb"] * 100.0 / hoechste
+                         if (g.get("sat_vb") and hoechste) else None)
 
     # Wer warten kann, spart - aber nur, wenn es wirklich etwas ausmacht.
     geduld = _gebuehr_fuer(d, 144)
