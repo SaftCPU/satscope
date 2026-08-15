@@ -61,3 +61,22 @@ browser in a cookie, so the server can render the right language on first paint.
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
+
+## Building and releasing
+
+The image is built by GitHub Actions on every push to `main` — multi-arch
+(`linux/amd64` + `linux/arm64`), published to `ghcr.io/saftcpu/satscope`,
+exactly the way other Umbrel apps ship.
+
+No local Docker is needed, and no token: Actions issues its own `GITHUB_TOKEN`
+per run.
+
+After the very first successful run, the package must be switched to **public**
+once — GitHub creates container packages private by default, and Umbrel could
+not pull it:
+
+    github.com/users/SaftCPU/packages/container/satscope/settings
+      -> Change visibility -> Public
+
+Then pin the digest of the **manifest list** (not of a single architecture) in
+`satscope/docker-compose.yml`. The Actions run summary prints it.
