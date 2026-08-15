@@ -79,3 +79,13 @@ body{
 .liste{margin-top:16px; background:var(--flaeche); border:1px solid var(--linie);
   border-radius:12px; padding:6px 22px}
 .k.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+/* --- Die Lage: ein Satz, der die Zahlen darunter deutet --- */
+.lage{
+  font-size:.86rem; line-height:1.5; margin:0 0 20px; padding:14px 18px;
+  border-radius:11px; border:1px solid var(--linie); background:var(--flaeche);
+  border-left:3px solid var(--gedaempft); text-wrap:pretty;
+}
+.lage-gut{border-left-color:var(--gut)}
+.lage-warnung{border-left-color:var(--schlecht)}
+.lage-normal{border-left-color:var(--akzent)}

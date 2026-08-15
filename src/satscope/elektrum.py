@@ -124,6 +124,13 @@ async def adress_uebersicht(kennung, zeitlimit=25.0):
     bestaetigt.sort(key=lambda e: e.get("height") or 0, reverse=True)
 
     return {
+        # Das Aktivitaetsband wird IMMER gerechnet, auch wenn die Liste zu
+        # gross zum Anzeigen ist: es sind nur Ganzzahlen, und gerade bei einer
+        # Adresse mit 65.000 Bewegungen ist das Bild die einzige Darstellung,
+        # die ueberhaupt noch etwas aussagt.
+        "band": _band([e.get("height") or 0 for e in bestaetigt]),
+        "erste_hoehe": min((e.get("height") or 0 for e in bestaetigt), default=None),
+        "letzte_hoehe": max((e.get("height") or 0 for e in bestaetigt), default=None),
         "bestaetigt_sat": (saldo or {}).get("confirmed", 0),
         "offen_sat": (saldo or {}).get("unconfirmed", 0),
         "anzahl": len(verlauf),
@@ -132,4 +139,37 @@ async def adress_uebersicht(kennung, zeitlimit=25.0):
         "grenze": LISTENGRENZE,
         "verlauf": (offen + bestaetigt)[:LISTENGRENZE]
                    if len(verlauf) <= LISTENGRENZE else [],
+    }
+
+
+# Wieviele Saeulen hat das Aktivitaetsband? 72 passt auf ein Handy-Display,
+# ohne dass einzelne Saeulen zu duenn zum Sehen werden.
+BAND_SAEULEN = 72
+
+
+def _band(hoehen):
+    """Bewegungen einer Adresse ueber die Zeit, als Saeulen.
+
+    Aus den Blockhoehen allein - kostet keinen einzigen zusaetzlichen Aufruf.
+    Wer 65.000 Bewegungen hat, bekommt so trotzdem eine Aussage: WANN war
+    etwas los? Eine Liste koennte das nie zeigen.
+    """
+    hoehen = sorted(h for h in hoehen if h > 0)
+    if not hoehen:
+        return None
+    von, bis = hoehen[0], hoehen[-1]
+    spanne = max(1, bis - von)
+    eimer = [0] * BAND_SAEULEN
+    for h in hoehen:
+        i = int((h - von) / spanne * (BAND_SAEULEN - 1))
+        eimer[i] += 1
+    hoechster = max(eimer) or 1
+    return {
+        "von": von, "bis": bis, "hoechster": hoechster,
+        # Wurzel statt linear: eine einzelne Spitze wuerde sonst alles andere
+        # zu Nulllinien druecken - bei Adressen ist genau die Verteilung
+        # dazwischen die Aussage.
+        "saeulen": [{"i": i, "anzahl": n,
+                     "anteil": round((n / hoechster) ** 0.5, 4)}
+                    for i, n in enumerate(eimer)],
     }

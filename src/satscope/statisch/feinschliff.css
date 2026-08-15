@@ -1,0 +1,304 @@
+/* Feinschliff: Kopfleiste, Themenwahl, Tastenkuerzel, Kopieren, Ladezustand,
+   Zugaenglichkeit.
+
+   Wird NACH satscope.css geladen und ergaenzt sie. Grundsatz: keine einzige
+   Variable aus satscope.css wird hier umdefiniert - wer die Farben aendern
+   will, aendert sie dort an EINER Stelle. Neue Variablen hier tragen alle
+   einen eigenen Namen und leiten sich aus den vorhandenen ab.
+
+   Alle Farben kommen aus --grund/--flaeche/--tinte/--gedaempft/--linie/
+   --akzent/--gut/--schlecht. Feste Hexwerte stehen nur dort, wo eine Farbe
+   NICHT vom Thema abhaengen darf (Text auf der Akzentflaeche, s. unten). */
+
+/* --------------------------------------------------------- Farbschema
+
+   1. color-scheme sagt dem Browser, wie er SEINE eigenen Teile faerbt:
+      Bildlaufleisten, das Kreuz im type="search", Auswahlfelder. Ohne das
+      steht im dunklen Thema eine weisse Bildlaufleiste neben schwarzem Grund.
+   2. --auf-akzent ist Text, der auf der Akzentflaeche liegt (Suchknopf).
+      GEMESSEN: Weiss auf dem dunklen Akzent #a371f7 ergibt nur 3,35:1 und
+      verfehlt damit WCAG AA (4,5:1) deutlich; auf dem hellen Akzent #6d28d9
+      sind es 7,10:1. Dieselbe Farbe kann also nicht beide Themen bedienen.
+      Mit --grund als Aufschrift im dunklen Thema sind es 5,70:1.
+
+   Der Dreiblock (blank / Medienabfrage / [data-theme]) ist derselbe wie in
+   satscope.css: die Medienabfrage schuetzt sich mit :not([data-theme="light"])
+   davor, eine ausdrueckliche Wahl zu ueberstimmen, und der letzte Block laesst
+   den Umschalter in BEIDE Richtungen gewinnen. */
+:root{
+  color-scheme:light;
+  --auf-akzent:#fff;
+  --flimmer:color-mix(in srgb, var(--tinte) 7%, transparent);
+  --flimmer-hell:color-mix(in srgb, var(--tinte) 14%, transparent);
+  --sanft:color-mix(in srgb, var(--tinte) 5%, transparent);
+  --schatten:0 10px 28px color-mix(in srgb, var(--tinte) 16%, transparent);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --auf-akzent:#0f0f14;
+    --schatten:0 10px 28px rgba(0,0,0,.55);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --auf-akzent:#0f0f14;
+  --schatten:0 10px 28px rgba(0,0,0,.55);
+}
+
+/* Der Suchknopf aus satscope.css hat color:#fff fest verdrahtet - im dunklen
+   Thema ist das der oben gemessene Fehlschlag. Hier korrigiert, ohne die
+   Grundlagendatei anzufassen. */
+.suche button{color:var(--auf-akzent)}
+
+/* --------------------------------------------------------- Grundlagen
+
+   .nur-lesbar: sichtbar nur fuer Vorleseprogramme. Nicht display:none - das
+   nimmt der Vorlesetechnik den Text genauso weg wie dem Auge.
+   .nur-mit-js: erscheint erst, wenn feinschliff.js (oder der Schnipsel im
+   Kopf) die Klasse "js" gesetzt hat. Bedienelemente ohne Wirkung bleiben so
+   unsichtbar, statt Ratlosigkeit zu erzeugen. */
+.nur-lesbar{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;
+}
+.nur-mit-js{display:none !important}
+html.js .nur-mit-js{display:revert !important}
+html.js .themenwahl.nur-mit-js{display:inline-flex !important}
+html.js .hilfe.nur-mit-js{display:block !important}
+
+/* Sprunglink: fuer Tastaturnutzer die erste erreichbare Stelle der Seite.
+   Er liegt ausserhalb des Blickfelds und kommt erst bei Fokus hervor. */
+.sprung{
+  position:absolute; left:12px; top:-60px; z-index:60;
+  background:var(--akzent); color:var(--auf-akzent);
+  padding:9px 16px; border-radius:0 0 9px 9px; font-size:.86rem; font-weight:600;
+  text-decoration:none; transition:top .16s ease;
+}
+.sprung:focus{top:0}
+
+/* Sichtbarer Fokusrahmen ueberall, wo man landen kann. :focus-visible statt
+   :focus, damit ein Mausklick nicht jeden Knopf einrahmt - der Rahmen soll
+   Orientierung geben, nicht das Bild zerschneiden.
+   GEMESSEN: der Akzent hat gegen beide Flaechen mindestens 5,37:1, ist als
+   Rahmen also in beiden Themen zweifelsfrei zu sehen. */
+:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:2px solid var(--akzent); outline-offset:2px; border-radius:5px;
+}
+/* Firefox zeichnet zusaetzlich seinen eigenen gepunkteten Rahmen. */
+:where(a,button,summary)::-moz-focus-inner{border:0}
+
+/* --------------------------------------------------------- Kopfleiste
+
+   .kopf ist in satscope.css ein flex mit space-between. Hier kommt nur
+   flex-wrap dazu: damit fallen Marke und Werkzeuge auf schmalen Geraeten in
+   die erste Zeile und die Suche in eine zweite, ohne zweites Layout. */
+.kopf{position:relative; flex-wrap:wrap; row-gap:10px}
+.marke{flex:none}
+.marke-name{font-size:1rem}
+
+.kopf-suche{
+  display:flex; align-items:center; gap:6px;
+  flex:1 1 220px; min-width:0; max-width:420px; margin:0 auto;
+  border:1px solid var(--linie); border-radius:10px;
+  background:var(--grund); padding:2px 2px 2px 10px;
+}
+.kopf-suche:focus-within{
+  border-color:var(--akzent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--akzent) 22%, transparent);
+}
+.kopf-suchfeld{
+  flex:1; min-width:0; border:0; background:none; color:var(--tinte);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.82rem;
+  padding:7px 0; text-overflow:ellipsis;
+}
+.kopf-suchfeld::placeholder{color:var(--gedaempft); opacity:1}
+/* Der Rahmen sitzt schon am Elternteil - zwei Rahmen ineinander sind Unruhe. */
+.kopf-suchfeld:focus{outline:none}
+
+/* Zwei Suchfelder auf einer Seite sind Ratlosigkeit. Zeigt der Inhalt schon
+   die grosse Suche (start.html, adresse.html), tritt die kleine zurueck.
+   Faellt :has() aus, erscheinen beide - unschoen, aber funktionsfaehig. */
+body:has(.inhalt .suche) .kopf-suche{display:none}
+
+.kopf-werkzeuge{display:flex; align-items:center; gap:8px; flex:none}
+
+/* Ein gemeinsames Aussehen fuer alle kleinen Knoepfe der Leiste. */
+.werkzeug-knopf,.thema-knopf,.sprachwahl{
+  display:inline-flex; align-items:center; justify-content:center;
+  height:30px; min-width:30px; padding:0 7px;
+  border:1px solid transparent; border-radius:8px;
+  background:none; color:var(--gedaempft);
+  font:inherit; font-size:.78rem; font-weight:600; letter-spacing:.02em;
+  text-decoration:none; cursor:pointer;
+  transition:color .14s ease, background-color .14s ease, border-color .14s ease;
+}
+.werkzeug-knopf:hover,.thema-knopf:hover,.sprachwahl:hover{
+  color:var(--tinte); background:var(--sanft);
+}
+.werkzeug-knopf svg,.thema-knopf svg,.kopf-lupe svg{
+  width:17px; height:17px; display:block;
+}
+.sprachwahl{border-color:var(--linie); font-size:.72rem}
+
+.kopf-lupe{
+  flex:none; display:inline-flex; align-items:center; justify-content:center;
+  width:30px; height:30px; border:0; border-radius:8px; cursor:pointer;
+  background:none; color:var(--gedaempft);
+  transition:color .14s ease, background-color .14s ease;
+}
+.kopf-lupe:hover{color:var(--auf-akzent); background:var(--akzent)}
+
+/* --------------------------------------------------------- Themenwahl */
+.themenwahl{
+  display:inline-flex; align-items:center; gap:2px; padding:2px;
+  border:1px solid var(--linie); border-radius:9px; background:var(--grund);
+}
+.thema-knopf{height:24px; min-width:26px; padding:0 5px; border-radius:7px}
+.thema-knopf svg{width:15px; height:15px}
+/* Der gewaehlte Zustand steht in aria-pressed - also faerben wir GENAU danach.
+   Eine zweite Klasse dafuer koennte auseinanderlaufen, und dann zeigt das Bild
+   etwas anderes als die Vorleseansage. */
+.thema-knopf[aria-pressed="true"]{
+  background:var(--flaeche); color:var(--akzent);
+  box-shadow:0 1px 2px color-mix(in srgb, var(--tinte) 12%, transparent);
+}
+
+/* --------------------------------------------------------- Tastenkuerzel */
+.hilfe{position:relative}
+.hilfe > summary{list-style:none}
+.hilfe > summary::-webkit-details-marker{display:none}
+.hilfe[open] > summary{color:var(--tinte); background:var(--sanft)}
+
+.hilfe-tafel{
+  position:absolute; top:calc(100% + 8px); right:0; z-index:40;
+  width:min(320px, calc(100vw - 24px));
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  box-shadow:var(--schatten); padding:14px 16px;
+  animation:auftauchen .14s ease-out;
+}
+@keyframes auftauchen{from{opacity:0; transform:translateY(-4px)} to{opacity:1}}
+.hilfe-titel{
+  margin:0 0 10px; font-size:.72rem; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--gedaempft);
+}
+.kuerzel{list-style:none; margin:0; padding:0}
+.kuerzel li{
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  padding:5px 0; font-size:.82rem;
+}
+.kuerzel li + li{border-top:1px solid var(--linie)}
+.tasten{display:flex; gap:4px; flex:none}
+kbd{
+  display:inline-block; min-width:20px; padding:2px 6px;
+  border:1px solid var(--linie); border-bottom-width:2px; border-radius:5px;
+  background:var(--grund); color:var(--tinte);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.72rem;
+  line-height:1.3; text-align:center;
+}
+.hilfe-fuss{
+  margin:10px 0 0; padding-top:9px; border-top:1px solid var(--linie);
+  font-size:.7rem; color:var(--gedaempft); line-height:1.45;
+}
+
+/* --------------------------------------------------------- Kopieren
+
+   Der Knopf haengt hinter dem Wert und bleibt gedaempft, bis man in die Naehe
+   kommt. Auf Geraeten ohne Zeigegeraet gibt es kein "in die Naehe kommen" -
+   dort ist er immer sichtbar (die Medienabfrage weiter unten). */
+.kopieren{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:24px; height:24px; margin-left:6px; vertical-align:-5px;
+  border:1px solid transparent; border-radius:6px; background:none;
+  color:var(--gedaempft); cursor:pointer; opacity:.5;
+  transition:opacity .14s ease, color .14s ease, background-color .14s ease;
+}
+.kopieren svg{width:14px; height:14px; display:block}
+.kopieren:hover,.kopieren:focus-visible{
+  opacity:1; color:var(--tinte); background:var(--sanft);
+}
+:where(.kennung,[data-kopieren],.zeile):hover .kopieren{opacity:1}
+/* Rueckmeldung: der Haken wechselt im JavaScript, die Farbe hier. */
+.kopieren.geschafft{opacity:1; color:var(--gut); background:none}
+.kopieren.misslungen{opacity:1; color:var(--schlecht)}
+/* Die Meldung steht in data-meldung, damit sie aus dem Textkatalog kommen
+   kann - CSS-content mit festem Text waere einsprachig. */
+.kopieren.geschafft::after,.kopieren.misslungen::after{
+  content:attr(data-meldung);
+  position:absolute; transform:translateY(-26px);
+  padding:3px 8px; border-radius:6px; white-space:nowrap; pointer-events:none;
+  background:var(--tinte); color:var(--grund);
+  font-size:.68rem; font-weight:600; letter-spacing:.01em;
+  animation:auftauchen .14s ease-out;
+}
+.kopieren{position:relative}
+
+/* --------------------------------------------------------- Ladezustand
+
+   Zwei verschiedene Dinge, die man nicht verwechseln darf:
+     .laedt  - der Wert ist unterwegs (Flimmern, gleich bleibende Groesse)
+     .fehlt  - der Wert kam nicht (Strich, endgueltig)
+   Der Entwurfsgedanke verlangt bei Ausfall einen Strich und keine Schaetzung;
+   ein ewig flimmernder Platzhalter waere genau die Luege, die wir vermeiden. */
+.laedt{
+  color:transparent !important;          /* schlaegt .w.hell, das eine Farbe setzt */
+  border-radius:6px; user-select:none;
+  background-image:linear-gradient(90deg,
+    var(--flimmer) 20%, var(--flimmer-hell) 38%, var(--flimmer) 60%);
+  background-size:300% 100%;
+  animation:flimmern 1.7s ease-in-out infinite;
+}
+.laedt *{visibility:hidden}
+/* Leere Platzhalter brauchen eine Groesse, sonst springt das Layout, sobald
+   der Wert eintrifft - genau der Sprung, den das Flimmern verhindern soll. */
+.laedt:empty{display:inline-block; min-width:6ch; height:1em; vertical-align:-.15em}
+@keyframes flimmern{from{background-position:150% 0} to{background-position:-50% 0}}
+
+.fehlt{color:var(--gedaempft); font-variant-numeric:normal}
+
+/* --------------------------------------------------------- Bewegungsarmut
+
+   Wer Bewegung abbestellt hat, bekommt keine. Das Flimmern wird dabei nicht
+   entfernt, sondern eingefroren: die graue Flaeche sagt weiterhin "hier fehlt
+   noch etwas", nur eben ohne Wandern. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important;
+  }
+  .laedt{background-image:none; background-color:var(--flimmer)}
+  .sprung{transition:none}
+}
+
+/* --------------------------------------------------------- Zeigegeraet
+
+   Ohne Maus gibt es kein :hover. Ein Kopierknopf, der erst bei :hover
+   erscheint, waere auf dem Handy schlicht nicht da. */
+@media (hover: none){
+  .kopieren{opacity:1}
+}
+
+/* --------------------------------------------------------- Schmale Geraete
+
+   Unter 640 px: Marke und Werkzeuge teilen sich die erste Zeile, die Suche
+   bekommt die zweite ueber die volle Breite. order statt eines zweiten
+   Markups - die Reihenfolge fuer Tastatur und Vorlesetechnik bleibt dabei
+   Marke, Suche, Werkzeuge, wie im Quelltext.
+   Geprueft bei 360 px: Marke ~96 px + Werkzeuge ~150 px + 24 px Rand
+   passen in eine Zeile. */
+@media (max-width: 640px){
+  .kopf{padding:10px 12px}
+  .marke{order:1}
+  .kopf-werkzeuge{order:2}
+  .kopf-suche{order:3; flex:1 1 100%; max-width:none; margin:0}
+  .inhalt{padding:20px 14px 44px}
+}
+@media (max-width: 380px){
+  .kopf{gap:8px}
+  .kopf-werkzeuge{gap:5px}
+  .marke-name{font-size:.94rem}
+  .sprachwahl{padding:0 5px}
+  .hilfe-tafel{width:calc(100vw - 20px); right:-6px}
+  /* Die Kuerzel-Zeile bricht auf zwei Zeilen, statt den Text zu quetschen. */
+  .kuerzel li{flex-wrap:wrap; gap:4px 10px}
+}

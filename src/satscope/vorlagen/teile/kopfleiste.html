@@ -1,0 +1,158 @@
+{#
+  Kopfleiste: Marke, Suche, Darstellung, Sprache, Tastenkuerzel.
+
+  Warum eine eigene Teilvorlage und nicht weiter direkt in grundlage.html:
+  die Leiste traegt inzwischen vier Bedienelemente und zwei Zustaende
+  (Thema, Sprache). In grundlage.html verstellt das den Blick auf das
+  Seitengeruest - und jede Seite, die spaeter eine eigene Grundlage braucht,
+  bekaeme sonst eine Kopie mit eigenem Alterungsverhalten.
+
+  KONTEXT, den die Vorlage erwartet:
+    t     Texte-Objekt (Pflicht)
+    pfad  aktueller Pfad fuer die Sprachumschaltung (optional, sonst "/")
+    suchwert  vorbelegte Sucheingabe (optional)
+    ziel_bloecke  Pfad der Blockliste fuer das Kuerzel "g b" (optional)
+  Fehlt etwas davon, faellt die Vorlage auf Vorgaben zurueck statt zu brechen -
+  eine Teilvorlage, die eine Seite mit UndefinedError abschiesst, waere ein
+  schlechter Tausch fuer etwas Kosmetik.
+
+  Alle SVG sind hier eingebettet und nicht als Datei verlinkt: die App macht
+  KEINEN einzigen Aufruf nach draussen, und jede zusaetzliche Datei waere eine
+  weitere Anfrage, die auf einem Pi im Ladebild sichtbar wird.
+#}
+<a class="sprung" href="#inhalt">{{ t.t("a11y.skip") }}</a>
+
+<header class="kopf">
+  <a class="marke" href="/" title="{{ t.t('app.tagline') }}">
+    <span class="marke-punkt" aria-hidden="true"></span>
+    <span class="marke-name">{{ t.t("app.name") }}</span>
+  </a>
+
+  {#
+    Die Suche steht in der Kopfleiste, damit sie auf JEDER Seite erreichbar ist
+    (und damit "/" ueberall etwas zu fokussieren findet). Auf Seiten, die schon
+    eine grosse Suche im Inhalt zeigen, blendet feinschliff.css diese hier aus -
+    zwei Suchfelder untereinander sind Ratlosigkeit, keine Bequemlichkeit.
+  #}
+  <form class="kopf-suche" action="/suche" method="get" role="search">
+    <label class="nur-lesbar" for="kopf-suchfeld">{{ t.t("search.label") }}</label>
+    <input class="kopf-suchfeld" id="kopf-suchfeld" type="search" name="q"
+           autocomplete="off" spellcheck="false" autocapitalize="off"
+           placeholder="{{ t.t('search.placeholder') }}"
+           value="{{ suchwert or '' }}">
+    <button class="kopf-lupe" type="submit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" aria-hidden="true" focusable="false">
+        <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.6-3.6"></path>
+      </svg>
+      <span class="nur-lesbar">{{ t.t("search.go") }}</span>
+    </button>
+  </form>
+
+  <div class="kopf-werkzeuge">
+    {#
+      Themenwahl. Bewusst drei Knoepfe statt eines Umschalters: bei zwei
+      Zustaenden kann man "folge dem System" nicht mehr ausdruecken, und genau
+      das ist die Vorgabe, mit der die App ausgeliefert wird.
+      Ohne JavaScript hat die Wahl keine Wirkung - deshalb "nur-mit-js": ein
+      Knopf, der nichts tut, ist schlimmer als kein Knopf.
+    #}
+    <div class="themenwahl nur-mit-js" role="group" aria-label="{{ t.t('theme.label') }}">
+      <button class="thema-knopf" type="button" data-thema="light"
+              aria-pressed="false" title="{{ t.t('theme.light') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4.2"></circle>
+          <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"></path>
+        </svg>
+        <span class="nur-lesbar">{{ t.t("theme.light") }}</span>
+      </button>
+      <button class="thema-knopf" type="button" data-thema="system"
+              aria-pressed="true" title="{{ t.t('theme.system') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <rect x="3" y="4" width="18" height="12.5" rx="1.8"></rect>
+          <path d="M8.5 20.5h7M12 16.5v4"></path>
+        </svg>
+        <span class="nur-lesbar">{{ t.t("theme.system") }}</span>
+      </button>
+      <button class="thema-knopf" type="button" data-thema="dark"
+              aria-pressed="false" title="{{ t.t('theme.dark') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M20 14.2A8.2 8.2 0 1 1 9.8 4a6.6 6.6 0 0 0 10.2 10.2z"></path>
+        </svg>
+        <span class="nur-lesbar">{{ t.t("theme.dark") }}</span>
+      </button>
+    </div>
+
+    {# Sprachwahl bleibt ein einfacher Link, damit sie auch ohne JavaScript
+       geht: der Server setzt das Cookie und leitet zurueck. Sichtbar ist nur
+       das Kuerzel (Platz in der Leiste), vorgelesen wird der ganze Name. #}
+    <a class="sprachwahl" rel="nofollow"
+       href="/sprache/{{ "de" if t.sprache == "en" else "en" }}?weiter={{ (pfad or '/')|urlencode }}"
+       aria-label="{{ t.t('lang.switch') }}">
+      <span aria-hidden="true">{{ t.t("lang.short") }}</span>
+    </a>
+
+    {#
+      Tastenkuerzel-Uebersicht als <details>: aufklappbar ohne eine Zeile
+      JavaScript, mit Tastatur bedienbar und vom Browser selbst korrekt an
+      Vorleseprogramme gemeldet. Ein selbstgebautes Menue muesste all das
+      nachbauen und waere dabei schlechter.
+
+      Diese Liste ist zugleich die QUELLE der Kuerzel: feinschliff.js liest
+      data-kette und data-ziel hier heraus. Damit kann die Anzeige nicht von
+      der Wirkung abweichen - der klassische Fehler bei Hilfeseiten.
+    #}
+    <details class="hilfe nur-mit-js">
+      <summary class="werkzeug-knopf" title="{{ t.t('keys.open') }}"
+               aria-label="{{ t.t('keys.open') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" aria-hidden="true" focusable="false">
+          <path d="M9.1 9a3 3 0 1 1 4.1 2.8c-.8.4-1.2 1-1.2 1.9v.5"></path>
+          <path d="M12 17.4v.2"></path>
+        </svg>
+      </summary>
+      <div class="hilfe-tafel">
+        <p class="hilfe-titel">{{ t.t("keys.title") }}</p>
+        <ul class="kuerzel">
+          <li data-taste="/"><span class="tasten"><kbd>/</kbd></span>
+            <span>{{ t.t("keys.search") }}</span></li>
+          <li data-taste="Escape"><span class="tasten"><kbd>Esc</kbd></span>
+            <span>{{ t.t("keys.escape") }}</span></li>
+          <li data-kette="g h" data-ziel="/">
+            <span class="tasten"><kbd>g</kbd><kbd>h</kbd></span>
+            <span>{{ t.t("keys.home") }}</span></li>
+          <li data-kette="g b" data-ziel="{{ ziel_bloecke|default('/blocks', true) }}">
+            <span class="tasten"><kbd>g</kbd><kbd>b</kbd></span>
+            <span>{{ t.t("keys.blocks") }}</span></li>
+          <li data-taste="t"><span class="tasten"><kbd>t</kbd></span>
+            <span>{{ t.t("keys.theme") }}</span></li>
+          <li data-taste="c"><span class="tasten"><kbd>c</kbd></span>
+            <span>{{ t.t("keys.copy") }}</span></li>
+          <li data-taste="?"><span class="tasten"><kbd>?</kbd></span>
+            <span>{{ t.t("keys.help") }}</span></li>
+        </ul>
+        <p class="hilfe-fuss">{{ t.t("keys.hint_chord") }}</p>
+      </div>
+    </details>
+  </div>
+</header>
+
+{#
+  Textvorrat fuer feinschliff.js. Das JavaScript darf keine eigenen Saetze
+  fuehren - sonst gaebe es einen zweiten, unuebersetzten Textkatalog, der beim
+  naechsten Sprachwechsel still englisch bleibt. Hier kommt alles aus t.t().
+#}
+<span id="satscope-texte" hidden
+      data-kopieren="{{ t.t('copy.action') }}"
+      data-kopiert="{{ t.t('copy.done') }}"
+      data-kopieren-fehler="{{ t.t('copy.failed') }}"
+      data-wert-fehlt="{{ t.t('value.unavailable') }}"
+      data-wert-laedt="{{ t.t('value.loading') }}"></span>
+
+{# Eine einzige Live-Region fuer die ganze Seite. Rueckmeldungen wie "Kopiert"
+   sind sonst NUR sichtbar - wer nicht hinsieht, erfaehrt nie, ob es geklappt
+   hat. role="status" meldet hoeflich, ohne den Lesefluss zu unterbrechen. #}
+<div id="satscope-melder" class="nur-lesbar" role="status" aria-live="polite"></div>

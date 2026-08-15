@@ -1,0 +1,47 @@
+/* --- Mempool-Tiefenkarte --- */
+.tiefenkarte{margin:0 0 20px; color:var(--akzent)}
+.tiefenkarte svg{
+  display:block; width:100%; height:auto; max-height:230px;
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+}
+.tk-grund{stroke:var(--linie); stroke-width:1}
+.tk-grenze{stroke:var(--linie); stroke-width:1; stroke-dasharray:3 4}
+/* Die erste Blockgrenze traegt die eigentliche Aussage der Karte: was links
+   davon liegt, kommt in den naechsten Block. Deshalb hervorgehoben. */
+.tk-grenze-erste{stroke:var(--akzent); stroke-width:1.5; stroke-dasharray:none; opacity:.55}
+.tk-marke{fill:var(--gedaempft); font-size:13px; font-family:ui-monospace,monospace}
+
+/* Die Balken wachsen von der Grundlinie hoch, leicht versetzt - das zeigt die
+   Reihenfolge, in der ein Miner einbaut: teuerste zuerst. */
+.tk-balken rect{
+  transform-origin:center bottom;
+  animation:tk-wachsen .5s cubic-bezier(.2,.8,.3,1) backwards;
+  animation-delay:var(--verzug,0ms);
+}
+@keyframes tk-wachsen{from{transform:scaleY(0); opacity:.2} to{transform:scaleY(1); opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  .tk-balken rect{animation:none}
+}
+
+/* --- Aktivitaetsband einer Adresse --- */
+.band{margin:0 0 18px}
+.band svg{
+  display:block; width:100%; height:90px;
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+}
+.band rect{
+  fill:var(--akzent);
+  transform-origin:center bottom;
+  animation:band-wachsen .45s cubic-bezier(.2,.8,.3,1) backwards;
+  animation-delay:var(--verzug,0ms);
+}
+/* Leere Zeitabschnitte bleiben als Nulllinie sichtbar - eine Luecke ist
+   selbst eine Aussage ("hier lag die Adresse jahrelang still"). */
+.band rect.band-leer{fill:var(--linie)}
+.band figcaption{
+  display:flex; justify-content:space-between; margin-top:5px;
+  font-size:.7rem; color:var(--gedaempft);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@keyframes band-wachsen{from{transform:scaleY(0)} to{transform:scaleY(1)}}
+@media (prefers-reduced-motion: reduce){ .band rect{animation:none} }

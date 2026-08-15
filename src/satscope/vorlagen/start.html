@@ -3,6 +3,12 @@
 {% block inhalt %}
 {% include "suche.html" %}
 
+{# Bild zuerst, Sprache nur als Bildunterschrift: die Tiefenkarte zeigt in
+   einem Blick, wo die eigene Gebuehr landet. Der Satz ist der Untertitel
+   dazu, nicht die Hauptaussage. #}
+{% include "teile/tiefenkarte.html" %}
+{% if satz %}<p class="lage lage-{{ lage_art }}">{{ satz }}</p>{% endif %}
+
 <section class="zustand">
   <div class="zustand-kopf">
     <span class="punkt {{ 'gut' if z.erreichbar and not z.holt_auf else 'schlecht' }}"></span>

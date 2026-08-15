@@ -8,9 +8,10 @@ Der Web-Prozess bekommt AUSSCHLIESSLICH das billige RPC-Tor. rpc_teuer wird hier
 absichtlich nicht importiert: gettxoutsetinfo braucht am Knoten gemessene 58 s -
 ein unbedachter Handler waere ein Denial-of-Service gegen den eigenen Node.
 """
+import asyncio
 import os
 
-from . import adresse, elektrum, knoten
+from . import adresse, elektrum, knoten, lage, tiefenkarte
 from .rpc import BILLIG, Tor
 from .sprache import COOKIE, COOKIE_ALTER, SPRACHEN, Texte, sprache_aus_cookies
 
@@ -56,12 +57,19 @@ def erzeuge_app():
 
     async def startseite(request):
         t = Texte(sprache_aus_cookies(request.cookies))
-        z = await knoten.zustand(TOR)
+        # Beide Quellen nebenlaeufig: der Knoten ueber RPC, das Histogramm
+        # ueber Electrum. Zusammen gemessen unter 60 ms.
+        z, hist = await asyncio.gather(knoten.zustand(TOR),
+                                       tiefenkarte.histogramm())
+        satz, art = lage.lage(z, t)
         return vorlagen.TemplateResponse(request, "start.html", {
             "t": t,
             "z": z,
             "pfad": request.url.path,
             "dauer": lambda s: _dauer_text(s, t.sprache),
+            "satz": satz,
+            "lage_art": art,
+            "karte": tiefenkarte.karte(hist),
         })
 
     def _btc_lokal(sat, t):

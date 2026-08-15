@@ -7,6 +7,29 @@
 <h1 class="objekt">{{ t.t("address.title") }}</h1>
 <p class="kennung">{{ adresse }}</p>
 
+{# Das Leben dieser Adresse auf einen Blick. Kostet keinen zusaetzlichen
+   Aufruf - die Blockhoehen haben wir ohnehin. Bei 65.000 Bewegungen ist das
+   die einzige Darstellung, die ueberhaupt noch etwas aussagt. #}
+{% if u.band %}
+<figure class="band">
+  <svg viewBox="0 0 720 90" preserveAspectRatio="none" role="img"
+       aria-label="{{ t.t('address.band_alt') }}">
+    {% for s in u.band.saeulen %}
+      <rect x="{{ s.i * 10 }}" y="{{ 86 - (s.anteil * 82) }}" width="8"
+            height="{{ (s.anteil * 82) if s.anzahl else 1.5 }}" rx="1.5"
+            class="{{ 'band-leer' if not s.anzahl }}"
+            style="--verzug:{{ s.i * 9 }}ms">
+        <title>{{ t.zahl(s.anzahl) }}</title>
+      </rect>
+    {% endfor %}
+  </svg>
+  <figcaption>
+    <span>{{ t.zahl(u.band.von) }}</span>
+    <span>{{ t.zahl(u.band.bis) }}</span>
+  </figcaption>
+</figure>
+{% endif %}
+
 <section class="zustand">
   <div class="zeile">
     <span class="k">{{ t.t("address.type") }}</span>

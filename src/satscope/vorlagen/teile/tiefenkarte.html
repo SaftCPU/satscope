@@ -1,0 +1,35 @@
+{# Mempool-Tiefenkarte. Vollstaendig serverseitig gezeichnet - ohne
+   JavaScript sichtbar, die Bewegung kommt allein aus CSS. #}
+{% if karte %}
+<figure class="tiefenkarte">
+  <svg viewBox="0 0 {{ karte.breite }} {{ karte.hoehe }}" preserveAspectRatio="none"
+       role="img" aria-label="{{ t.t('karte.alt') }}">
+    <defs>
+      <linearGradient id="tk-boden" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="currentColor" stop-opacity=".10"/>
+        <stop offset="1" stop-color="currentColor" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+
+    {# Blockgrenzen zuerst, damit die Balken darueber liegen. Die erste Linie
+       ist die wichtigste der Karte: links davon = naechster Block. #}
+    {% for g in karte.grenzen %}
+      <line class="tk-grenze {{ 'tk-grenze-erste' if g.nr == 1 }}"
+            x1="{{ g.x }}" y1="4" x2="{{ g.x }}" y2="{{ karte.grundlinie }}"/>
+      <text class="tk-marke" x="{{ g.x + 5 }}" y="{{ karte.hoehe - 8 }}">{{ g.nr }}</text>
+    {% endfor %}
+
+    <g class="tk-balken">
+      {% for b in karte.balken %}
+        <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.breite }}" height="{{ b.hoehe }}"
+              fill="{{ b.farbe }}" style="--verzug:{{ loop.index0 * 45 }}ms">
+          <title>{{ t.zahl(b.satz, 1) }} sat/vB · {{ t.zahl(b.vsize / 1000, 0) }} kvB</title>
+        </rect>
+      {% endfor %}
+    </g>
+
+    <line class="tk-grund" x1="0" y1="{{ karte.grundlinie }}"
+          x2="{{ karte.breite }}" y2="{{ karte.grundlinie }}"/>
+  </svg>
+</figure>
+{% endif %}
