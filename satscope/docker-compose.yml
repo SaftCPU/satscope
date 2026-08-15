@@ -13,7 +13,7 @@ services:
   # Dienstnamen mit Praefix, weil alle Apps im selben Docker-Netz haengen und
   # ein Dienst namens "web" dort bereits existiert (Mempool).
   sat-web:
-    image: ghcr.io/saftcpu/satscope:0.1.0
+    image: ghcr.io/saftcpu/satscope:0.1.0@sha256:f32920f00dafa283bf3efb46d644ef48f5e3277b29cd8a513a2db0038886cdea
     user: "1000:1000"
     init: true
     restart: on-failure
@@ -39,7 +39,7 @@ services:
       ELECTRUM_PORT: $APP_ELECTRS_NODE_PORT
 
   sat-sammler:
-    image: ghcr.io/saftcpu/satscope:0.1.0
+    image: ghcr.io/saftcpu/satscope:0.1.0@sha256:f32920f00dafa283bf3efb46d644ef48f5e3277b29cd8a513a2db0038886cdea
     user: "1000:1000"
     init: true
     restart: on-failure
