@@ -35,36 +35,12 @@ services:
       BITCOIN_RPC_PORT: $APP_BITCOIN_RPC_PORT
       BITCOIN_RPC_USER: $APP_BITCOIN_RPC_USER
       BITCOIN_RPC_PASS: $APP_BITCOIN_RPC_PASS
-      ELECTRUM_HOST: $APP_ELECTRS_NODE_IP
-      ELECTRUM_PORT: $APP_ELECTRS_NODE_PORT
 
-  sat-sammler:
-    image: ghcr.io/saftcpu/satscope:0.1.0@sha256:f32920f00dafa283bf3efb46d644ef48f5e3277b29cd8a513a2db0038886cdea
-    user: "1000:1000"
-    init: true
-    restart: on-failure
-    stop_grace_period: 1m
-    command: ["python", "-m", "satscope.sammler"]
-    mem_limit: 800m
-    memswap_limit: 800m
-    cpus: 2.0
-    volumes:
-      - ${APP_DATA_DIR}/data:/data
-      # VERZEICHNIS binden, nicht die Datei: zeigt ein Datei-Bind auf eine noch
-      # nicht existierende Quelle, legt Docker dort ein VERZEICHNIS an und der
-      # Start bricht. Das Datenverzeichnis existiert dagegen immer.
-      - ${UMBREL_ROOT}/app-data/bitcoin/data/bitcoin:/bitcoin:ro
-    environment:
-      SATSCOPE_ROLLE: sammler
-      SATSCOPE_DB: /data/satscope.sqlite
-      SATSCOPE_DEBUG_LOG: /bitcoin/debug.log
-      BITCOIN_RPC_HOST: $APP_BITCOIN_NODE_IP
-      BITCOIN_RPC_PORT: $APP_BITCOIN_RPC_PORT
-      BITCOIN_RPC_USER: $APP_BITCOIN_RPC_USER
-      BITCOIN_RPC_PASS: $APP_BITCOIN_RPC_PASS
-      ZMQ_HOST: $APP_BITCOIN_NODE_IP
-      ZMQ_HASHBLOCK_PORT: $APP_BITCOIN_ZMQ_HASHBLOCK_PORT
-      ZMQ_RAWTX_PORT: $APP_BITCOIN_ZMQ_RAWTX_PORT
-      ZMQ_SEQUENCE_PORT: $APP_BITCOIN_ZMQ_SEQUENCE_PORT
-      ELECTRUM_HOST: $APP_ELECTRS_NODE_IP
-      ELECTRUM_PORT: $APP_ELECTRS_NODE_PORT
+# Der Sammler-Dienst folgt, sobald er wirklich arbeitet. Ein Dienst, dessen
+# Prozess sofort zurueckkehrt, stuende dauerhaft als "Exited (0)" in der
+# Oberflaeche - Umbrel verlangt einen Dienst je LANGLAUFENDEM Prozess.
+#
+# Ebenso folgt spaeter der Lesezugriff auf bitcoinds debug.log. Der laeuft dann
+# ueber ${APP_BITCOIN_DATA_DIR} aus bitcoins eigenem exports.sh, NICHT ueber
+# einen hartkodierten Pfad in fremde App-Daten - der braeche, sobald jemand
+# testnet faehrt.

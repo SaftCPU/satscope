@@ -13,7 +13,8 @@
       <span class="marke-name">{{ t.t("app.name") }}</span>
     </a>
     <nav class="nav">
-      <a href="/node">{{ t.t("nav.node") }}</a>
+      <!-- /node kommt in Stufe A. Kein Menuepunkt ohne Ziel:
+           ein toter Link ist der erste Klick eines jeden Pruefers. -->
       <!-- Sprachwahl: einfacher Link, damit sie auch ohne JavaScript geht.
            Der Server setzt das Cookie und leitet zurueck. -->
       <a class="sprachwahl"
