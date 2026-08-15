@@ -1,0 +1,55 @@
+:root{
+  --grund:#fbfafc; --flaeche:#fff; --tinte:#16151c; --gedaempft:#66627a;
+  --linie:#e5e2ee; --akzent:#6d28d9; --gut:#166534; --schlecht:#b91c1c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --grund:#0f0f14; --flaeche:#16161d; --tinte:#e9e7f1; --gedaempft:#9995a8;
+    --linie:#272630; --akzent:#a371f7; --gut:#4ac162; --schlecht:#f16a63;
+  }
+}
+:root[data-theme="dark"]{
+  --grund:#0f0f14; --flaeche:#16161d; --tinte:#e9e7f1; --gedaempft:#9995a8;
+  --linie:#272630; --akzent:#a371f7; --gut:#4ac162; --schlecht:#f16a63;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--grund); color:var(--tinte);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+.kopf{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:14px 22px; border-bottom:1px solid var(--linie); background:var(--flaeche);
+}
+.marke{display:flex; align-items:center; gap:9px; text-decoration:none; color:inherit}
+.marke-punkt{width:10px;height:10px;border-radius:50%;background:var(--akzent);
+  box-shadow:0 0 10px color-mix(in srgb, var(--akzent) 60%, transparent)}
+.marke-name{font-weight:800; letter-spacing:-.02em}
+.nav{display:flex; gap:18px; align-items:center; font-size:.88rem}
+.nav a{color:var(--gedaempft); text-decoration:none}
+.nav a:hover{color:var(--tinte)}
+.sprachwahl{
+  border:1px solid var(--linie); border-radius:6px; padding:3px 10px;
+  font-size:.8rem;
+}
+.inhalt{max-width:560px; margin:0 auto; padding:30px 22px 60px}
+
+.zustand{background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:18px 22px}
+.zustand-kopf{display:flex; align-items:center; gap:9px; margin-bottom:14px}
+.punkt{width:9px;height:9px;border-radius:50%;flex:none;background:var(--gedaempft)}
+.punkt.gut{background:var(--gut)}
+.punkt.schlecht{background:var(--schlecht)}
+.zustand-titel{font-size:.8rem;font-weight:600;letter-spacing:.03em}
+.zeile{display:flex; justify-content:space-between; align-items:baseline; gap:14px;
+  padding:8px 0; border-top:1px solid var(--linie)}
+.zeile:first-of-type{border-top:none}
+.k{font-size:.84rem; color:var(--gedaempft)}
+.w{font-size:.94rem; font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; text-align:right}
+.w.hell{color:var(--akzent); font-weight:700}
+.hinweis{margin-top:18px; font-size:.8rem; color:var(--gedaempft); text-align:center}
+.fuss{text-align:center; font-size:.75rem; color:var(--gedaempft);
+  padding:18px; border-top:1px solid var(--linie)}

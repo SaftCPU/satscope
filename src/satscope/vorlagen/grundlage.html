@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="{{ t.sprache }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block titel %}{{ t.t("app.name") }}{% endblock %}</title>
+<link rel="stylesheet" href="/statisch/satscope.css">
+</head>
+<body>
+  <header class="kopf">
+    <a class="marke" href="/">
+      <span class="marke-punkt"></span>
+      <span class="marke-name">{{ t.t("app.name") }}</span>
+    </a>
+    <nav class="nav">
+      <a href="/node">{{ t.t("nav.node") }}</a>
+      <!-- Sprachwahl: einfacher Link, damit sie auch ohne JavaScript geht.
+           Der Server setzt das Cookie und leitet zurueck. -->
+      <a class="sprachwahl"
+         href="/sprache/{{ "de" if t.sprache == "en" else "en" }}?weiter={{ pfad }}"
+         rel="nofollow">{{ t.t("lang.switch") }}</a>
+    </nav>
+  </header>
+
+  <main class="inhalt">
+    {% block inhalt %}{% endblock %}
+  </main>
+
+  <footer class="fuss">{{ t.t("footer.nocalls") }}</footer>
+  <script src="/statisch/satscope.js" defer></script>
+</body>
+</html>

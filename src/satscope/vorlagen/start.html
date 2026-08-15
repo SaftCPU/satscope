@@ -1,0 +1,41 @@
+{% extends "grundlage.html" %}
+
+{% block inhalt %}
+<section class="zustand">
+  <div class="zustand-kopf">
+    <span class="punkt {{ 'gut' if z.erreichbar and not z.holt_auf else 'schlecht' }}"></span>
+    <span class="zustand-titel">
+      {% if not z.erreichbar %}{{ t.t("state.unreachable") }}
+      {% elif z.holt_auf %}{{ t.t("state.syncing") }}
+      {% else %}{{ t.t("state.ok") }}{% endif %}
+    </span>
+  </div>
+
+  <div class="zeile">
+    <span class="k">{{ t.t("block.height") }}</span>
+    <span class="w hell">{{ t.zahl(z.hoehe) }}</span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("block.age") }}</span>
+    <!-- Das Alter waechst weiter, ohne dass die Seite neu geladen wird:
+         der Zeitstempel steht im data-Attribut, satscope.js zaehlt hoch. -->
+    <span class="w" data-alter-seit="{{ z.block_zeit or '' }}">
+      {{ dauer(z.block_alter) }}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("mempool.size") }}</span>
+    <span class="w">
+      {% if z.mempool_bytes %}{{ t.zahl(z.mempool_bytes / 1000000, 1) }} MB{% else %}{{ t.t("value.missing") }}{% endif %}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("node.peers") }}</span>
+    <span class="w">
+      {% if z.verbindungen is not none %}{{ t.zahl(z.verbindungen) }}{% else %}{{ t.t("value.missing") }}{% endif %}
+    </span>
+  </div>
+</section>
+
+<p class="hinweis">{{ t.t("stage.notice") }}</p>
+{% endblock %}

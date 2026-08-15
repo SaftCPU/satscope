@@ -73,10 +73,18 @@ class Tor:
         import httpx
         nutz = {"jsonrpc": "2.0", "id": "satscope",
                 "method": methode, "params": argumente}
-        async with httpx.AsyncClient(timeout=self.zeitlimit) as k:
-            antwort = await k.post(
-                "http://%s:%d/" % (self.host, self.port),
-                json=nutz, auth=(self.benutzer, self.geheim))
+        try:
+            async with httpx.AsyncClient(timeout=self.zeitlimit) as k:
+                antwort = await k.post(
+                    "http://%s:%d/" % (self.host, self.port),
+                    json=nutz, auth=(self.benutzer, self.geheim))
+        except httpx.HTTPError as e:
+            # ALLE Transportfehler werden hier in RpcFehler uebersetzt.
+            # Sonst muesste jeder Aufrufer httpx kennen - und httpx.ConnectError
+            # ist KEIN OSError, weshalb ein nicht erreichbarer Knoten die
+            # Startseite mit HTTP 500 abgeschossen hat statt einen Strich zu
+            # zeigen (gefunden im Rendertest, 15.08.2026).
+            raise RpcFehler("%s nicht erreichbar: %s" % (methode, type(e).__name__))
         if antwort.status_code != 200:
             raise RpcFehler("HTTP %d bei %s" % (antwort.status_code, methode))
         d = antwort.json()
