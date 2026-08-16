@@ -1,0 +1,223 @@
+{% extends "grundlage.html" %}
+{% block titel %}{{ t.t("mempool.title") }} · {{ t.t("app.name") }}{% endblock %}
+
+{#
+  Die Mempool-Seite. KONTEXT, den sie erwartet:
+      t     Texte-Objekt (Pflicht)
+      pfad  aktueller Pfad fuer die Sprachumschaltung
+      m     das Ergebnis von mempoolseite.seite(TOR)
+
+  `m` traegt IMMER alle Schluessel (siehe mempoolseite._leer). Deshalb darf hier
+  mit `is not none` geprueft werden, ohne dass ein fehlender Schluessel als
+  Undefined durchrutscht - Undefined ist "not none" und wuerde eine leere Zeile
+  drucken statt eines Strichs.
+
+  Jede Zahl geht durch t.zahl(), jedes Wort durch t.t(). Fehlt ein Wert, steht
+  dort der Strich aus value.missing - nie eine Schaetzung.
+#}
+{% block inhalt %}
+{#
+  Das Stylesheet wird HIER geladen und nicht in grundlage.html: an der
+  Grundlage arbeitet gleichzeitig ein anderer Baustein, und zwei Schreiber auf
+  einer Datei geben Konflikte statt Fortschritt. <link rel="stylesheet"> ist im
+  Rumpf laut HTML-Standard erlaubt ("body-ok") und wird von jedem Browser
+  angewandt. Sobald grundlage.html frei ist, gehoert die Zeile in den <head> -
+  von dort laedt sie ein Stueck frueher.
+#}
+<link rel="stylesheet" href="/statisch/mempoolseite.css">
+
+<h1 class="objekt">{{ t.t("mempool.title") }}</h1>
+<p class="mp-unterzeile">{{ t.t("mempool.subtitle") }}</p>
+
+{#- Zwei getrennte Quellen, zwei getrennte Meldungen: der Knoten kann stumm
+    sein, waehrend der Electrum-Server antwortet - und umgekehrt. Eine
+    gemeinsame Fehlermeldung wuerde die eine Haelfte mit verschweigen. -#}
+{% if not m.erreichbar %}
+<div class="mp-warnung"><p>{{ t.t("mempool.unreachable") }}</p></div>
+{% endif %}
+{% if not m.histogramm_da %}
+<div class="mp-warnung"><p>{{ t.t("mempool.nohist") }}</p></div>
+{% endif %}
+{% if m.erreichbar and not m.geladen %}
+<div class="mp-warnung"><p>{{ t.t("mempool.notloaded") }}</p></div>
+{% endif %}
+
+{#- Der Ueberlauf ist die wichtigste Meldung dieser Seite: er erklaert, warum
+    guenstige Transaktionen einfach verschwinden. Er steht deshalb ganz oben
+    und nur dann, wenn er wirklich stattfindet. -#}
+{% if m.ueberlauf %}
+<div class="mp-warnung">
+  <p>{{ t.t("mempool.overflow") }}</p>
+  <p>{{ t.t("spiel.fee.floor", n=t.zahl(m.min_sat_vb, 2)) }}
+    {%- if m.ueberlauf_faktor %} {{ t.t("mempool.overflow.factor", f=t.zahl(m.ueberlauf_faktor, 1)) }}{% endif -%}
+  </p>
+</div>
+{% endif %}
+
+<!-- ------------------------------------------------------ 1. Kennzahlen -->
+<div class="mp-kacheln">
+  <div class="mp-kachel">
+    <span class="k">{{ t.t("mempool.waiting") }}</span>
+    <span class="mp-gross">{{ t.zahl(m.anzahl) }}</span>
+  </div>
+  <div class="mp-kachel">
+    <span class="k">{{ t.t("mempool.depth") }}</span>
+    <span class="mp-gross">{{ t.zahl(m.tiefe_bloecke, 1) }}<span class="mp-einheit">
+      {{- " " }}{{ t.t("mempool.depth.unit") }}</span></span>
+  </div>
+  <div class="mp-kachel">
+    <span class="k">{{ t.t("mempool.fees") }}</span>
+    {#- Gebuehren in BTC: der Betrag, um den ein Miner gerade spielt. Ohne
+        Wert steht hier der Strich, nicht eine Null. -#}
+    <span class="mp-gross">
+      {%- if m.gebuehr_sat is not none %}{{ t.zahl(m.gebuehr_sat / 100000000, 3) }}
+      {%- else %}{{ t.t("value.missing") }}{% endif -%}
+      <span class="mp-einheit"> {{ t.t("unit.btc") }}</span></span>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------ 2. Fuellstand -->
+<section class="mp-abschnitt">
+  <h2 class="mp-titel">{{ t.t("mempool.fill.title") }}</h2>
+  {% if m.speicher_p is not none %}
+  {#- Gemessen wird der ARBEITSSPEICHER (usage) gegen maxmempool, nicht die
+      virtuelle Groesse: geworfen wird nach Speicher. Am Probeknoten sind das
+      142 MB Speicher fuer 28 MB vsize - wer bytes vergleicht, saehe 9 %,
+      waehrend der Knoten schon raeumt. -#}
+  <div class="mp-schiene">
+    <div class="mp-fuellung {{ m.speicher_klasse }}"
+         style="width:{{ [m.speicher_p, 100] | min | round(1) }}%"></div>
+  </div>
+  <div class="mp-beschriftung">
+    <span>{{ t.t("mempool.fill.of",
+                 used=t.t("chain.megabytes", n=t.zahl(m.speicher_bytes / 1000000, 0)),
+                 max=t.t("chain.megabytes", n=t.zahl(m.max_bytes / 1000000, 0))) }}</span>
+    <span>{{ t.zahl(m.speicher_p, 1) }} %</span>
+  </div>
+  {% else %}
+  <p class="mp-leer">{{ t.t("value.missing") }}</p>
+  {% endif %}
+</section>
+
+<!-- --------------------------------------------- 3. Aufnahmeschwelle -->
+{% set p = m.projektion %}
+<section class="mp-abschnitt">
+  <h2 class="mp-titel">{{ t.t("mempool.threshold.title") }}</h2>
+  <div class="mp-schwelle">
+    {#- Links die Messung: der Satz an der Stelle, an der die kumulierte vsize
+        1.000.000 erreicht. Rechts die Schaetzung des Knotens auf dasselbe
+        Ziel. Zwei Wege zu einer Frage - die Luecke dazwischen ist die
+        interessanteste Zahl der Seite. -#}
+    <div>
+      <span class="k">{{ t.t("mempool.threshold") }}</span>
+      <span class="mp-gross">
+        {%- if p and p.schwelle is not none %}{{ t.zahl(p.schwelle, 2) }}
+        {%- else %}{{ t.t("value.missing") }}{% endif -%}
+        <span class="mp-einheit"> {{ t.t("unit.satvb") }}</span></span>
+    </div>
+    <div>
+      <span class="k">{{ t.t("mempool.estimator") }}</span>
+      <span class="mp-gross">
+        {%- if m.schaetzung_naechster %}{{ t.zahl(m.schaetzung_naechster, 2) }}
+        {%- else %}{{ t.t("value.missing") }}{% endif -%}
+        <span class="mp-einheit"> {{ t.t("unit.satvb") }}</span>
+        {%- if m.abweichung_p %}<span class="mp-abstand">
+          {{- t.t("mempool.gap.over", p=t.zahl(m.abweichung_p, 0)) if m.abweichung_p > 0
+              else t.t("mempool.gap.under", p=t.zahl(-m.abweichung_p, 0)) -}}
+        </span>{% endif -%}
+      </span>
+      {% if m.roh_sat_vb %}
+      <span class="mp-spanne">{{ t.t("mempool.raw", n=t.zahl(m.roh_sat_vb, 2)) }}</span>
+      {% endif %}
+    </div>
+  </div>
+  {% if p and p.passt_alles and not p.leer %}
+  <p class="mp-fussnote">{{ t.t("mempool.threshold.all") }}
+    {%- if p.frei_vsize %} {{ t.t("mempool.threshold.free", n=t.zahl(p.frei_vsize)) }}{% endif -%}
+  </p>
+  {% endif %}
+</section>
+
+<!-- --------------------------------------- 4. Die naechsten Bloecke -->
+<section class="mp-abschnitt">
+  <h2 class="mp-titel">{{ t.t("mempool.blocks.title") }}</h2>
+  {% if not p %}
+  <p class="mp-leer">{{ t.t("value.missing") }}</p>
+  {% elif not p.bloecke %}
+  <p class="mp-leer">{{ t.t("mempool.empty") }}</p>
+  {% else %}
+  {#- Ein Quader je kuenftigem Block. Seine Fuellhoehe ist der Platz, den die
+      Warteschlange darin schon belegt; die Streifen darin sind die
+      Gebuehrenstufen in EINBAUREIHENFOLGE - teuerste oben, so wie ein Miner
+      sie nimmt. flex-grow statt Prozenthoehen, damit keine Rundungsluecke
+      bleibt. -#}
+  <div class="mp-reihe">
+    {% for b in p.bloecke %}
+    <div class="mp-block">
+      <div class="mp-quader">
+        <div class="mp-stapel"
+             style="height:{{ b.fuellung_p | round(1) }}%; --verzug:{{ loop.index0 * 60 }}ms">
+          {%- for s in b.segmente %}
+          <i style="flex-grow:{{ s.vsize }}; background:{{ s.farbe }}"
+             title="{{ t.zahl(s.satz, 1) }} {{ t.t('unit.satvb') }} · {{ t.zahl(s.vsize / 1000, 0) }} kvB"></i>
+          {%- endfor %}
+        </div>
+      </div>
+      <div class="mp-medianzahl">{{ t.zahl(b.median, 1) }}<span class="mp-einheit">
+        {{- " " }}{{ t.t("unit.satvb") }}</span></div>
+      <div class="mp-spanne">
+        {#- Die Werte des Histogramms sind Stufenkanten, keine Einzelgebuehren.
+            Deshalb steht hier eine Spanne und keine Nachkommastelle mehr, als
+            die Quelle hergibt. -#}
+        {%- if b.unter_boden %}{{ t.t("mempool.under", n=t.zahl(p.boden, 0)) }}
+        {%- elif b.min == b.max %}{{ t.zahl(b.min, 1) }}
+        {%- else %}{{ t.t("chain.fee_range", min=t.zahl(b.min, 1), max=t.zahl(b.max, 1)) }}{% endif -%}
+      </div>
+      <div class="mp-eta">{{ t.t("mempool.eta", n=t.zahl(b.minuten)) }}</div>
+    </div>
+    {% endfor %}
+    {% if p.rest %}
+    <div class="mp-rest">
+      {{- t.t("mempool.rest", b=t.zahl(p.rest.bloecke), n=t.zahl(p.boden, 0)) if p.rest.unter_boden
+          else t.t("mempool.rest.above", b=t.zahl(p.rest.bloecke), n=t.zahl(p.rest.hoechster, 1)) -}}
+    </div>
+    {% endif %}
+  </div>
+  {% if p.tot_p %}
+  <p class="mp-fussnote">{{ t.t("mempool.stuck", p=t.zahl(p.tot_p, 0), n=t.zahl(p.boden, 0)) }}</p>
+  {% endif %}
+  {% endif %}
+</section>
+
+<!-- ------------------------------------------------------ 5. Tiefenkarte -->
+{#- Dieselben Daten als Treppe: waagerecht der Platz in Bloecken, senkrecht die
+    Gebuehr. Bewusst die vorhandene Teilvorlage statt einer zweiten Zeichnung -
+    sie erwartet die Variable `karte`. -#}
+{% if m.karte %}
+<h2 class="mp-titel">{{ t.t("mempool.map.title") }}</h2>
+{% set karte = m.karte %}
+{% include "teile/tiefenkarte.html" %}
+{% endif %}
+
+<!-- ------------------------------------------------------ 6. Schaetzungen -->
+{% if m.schaetzungen %}
+<section class="mp-abschnitt">
+  <h2 class="mp-titel">{{ t.t("mempool.forecast.title") }}</h2>
+  <div class="mp-ziele">
+    {% for g in m.schaetzungen %}
+    <div class="mp-ziel">
+      <span class="k">{{ t.t(g.schluessel) }}</span>
+      {#- Massstab ist das teuerste Ziel, nicht eine feste Skala: bei 1-2 sat/vB
+          waere eine absolute Skala nicht mehr zu unterscheiden. -#}
+      <span class="mp-balken"><i style="width:{{ (g.anteil_p or 0) | round(1) }}%"></i></span>
+      <span class="w">
+        {%- if g.sat_vb %}{{ t.zahl(g.sat_vb, 2) }}{% else %}{{ t.t("value.missing") }}{% endif -%}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="mp-fussnote">{{ t.t("unit.satvb") }}</p>
+</section>
+{% endif %}
+
+{% endblock %}

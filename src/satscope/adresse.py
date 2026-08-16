@@ -121,6 +121,13 @@ def script_von_adresse(a):
         vorsatz, werte, art = _bech32_zerlegen(a)
         if vorsatz != "bc":
             raise UnbekannteAdresse("kein Mainnet")
+        # ⚠️ "bc1gmk9yu" hat eine GUELTIGE Bech32-Pruefsumme bei LEERER Nutzlast.
+        # Ohne diese Zeile wirft werte[0] einen IndexError statt einer sauberen
+        # Ablehnung - und /address/bc1gmk9yu antwortete mit HTTP 500 (gefunden
+        # 16.08.2026 beim Bau der Suche). Eine gueltige Pruefsumme heisst eben
+        # nur, dass nichts verstuemmelt wurde, nicht dass etwas drinsteht.
+        if not werte:
+            raise UnbekannteAdresse("leere Nutzlast")
         fassung, rumpf = werte[0], _fuenf_auf_acht(werte[1:])
         if fassung == 0:
             if art != "bech32":

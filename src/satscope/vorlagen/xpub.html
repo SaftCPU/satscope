@@ -1,0 +1,242 @@
+{% extends "grundlage.html" %}
+{% block titel %}
+  {%- if x.gefunden %}{{ x.kurz }}{% else %}{{ t.t("xpub.nf.title") }}{% endif %} · {{ t.t("app.name") }}
+{%- endblock %}
+
+{% block inhalt %}
+<style>
+/* Eigenes CSS dieser Seite. Es steht hier und nicht in satscope.css, weil dort
+   parallel gearbeitet wird; alle Klassen tragen den Vorsatz "xp-" und koennen
+   deshalb mit fremden Namen nicht kollidieren. Farben ausschliesslich ueber die
+   Variablen - eine feste Farbe waere in genau einem der beiden Themes
+   unlesbar. */
+
+/* Der Hinweis, um den es auf dieser Seite geht: das Schild steht VOR dem Satz,
+   damit man es sieht, bevor man liest. */
+.xp-schutz{
+  display:flex; align-items:center; gap:9px; margin:0 0 18px;
+  padding:9px 14px; border-radius:10px; font-size:.82rem; line-height:1.4;
+  border:1px solid color-mix(in srgb, var(--gut) 35%, var(--linie));
+  background:color-mix(in srgb, var(--gut) 7%, var(--flaeche));
+  color:var(--tinte);
+}
+.xp-schutz svg{flex:none; color:var(--gut)}
+
+/* Die eine Zahl, wegen der man die Seite aufruft. */
+.xp-summe{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  padding:18px 22px; text-align:center;
+}
+.xp-gross{
+  font-size:2rem; font-weight:800; letter-spacing:-.035em; line-height:1.05;
+  color:var(--akzent); font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; word-break:break-all;
+}
+.xp-gross small{font-size:.85rem; font-weight:600; color:var(--gedaempft);
+  font-family:inherit; letter-spacing:0}
+.xp-unter{font-size:.78rem; color:var(--gedaempft); margin-top:6px}
+@media (max-width:420px){ .xp-gross{font-size:1.5rem} }
+
+/* Herkunftsangaben des Schluessels als Marken - vier kurze Tatsachen, kein Satz. */
+.xp-marken{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px}
+.xp-marke{
+  display:inline-flex; gap:6px; align-items:baseline; padding:3px 10px;
+  border:1px solid var(--linie); border-radius:7px; background:var(--flaeche);
+  font-size:.76rem; color:var(--gedaempft);
+}
+.xp-marke b{font-weight:600; color:var(--tinte);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+.xp-kapitel{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  padding:16px 22px 18px; margin-top:16px;
+}
+.xp-kapitel h2{
+  font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gedaempft); margin:0 0 4px;
+}
+.xp-kopf{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+.xp-kopf .xp-saldo{
+  font-size:1.05rem; font-weight:700; color:var(--akzent);
+  font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+}
+
+/* Der Streifen: eine Saeule je abgeleiteter Adresse, von 0 aufsteigend.
+   Er beantwortet auf einen Blick zwei Fragen, die eine Liste nie beantwortet -
+   wie weit die Wallet benutzt ist und wo das Geld liegt. */
+.xp-streifen{width:100%; height:76px; display:block; margin:10px 0 2px;
+  overflow:visible}
+.xp-streifen rect{fill:var(--linie)}
+.xp-streifen rect.xp-benutzt{fill:var(--gedaempft); opacity:.55}
+.xp-streifen rect.xp-hat{fill:var(--akzent)}
+.xp-achse{display:flex; justify-content:space-between; font-size:.7rem;
+  color:var(--gedaempft); font-variant-numeric:tabular-nums}
+
+.xp-legende{display:flex; flex-wrap:wrap; gap:14px; margin-top:8px;
+  font-size:.72rem; color:var(--gedaempft)}
+.xp-legende span{display:inline-flex; align-items:center; gap:5px}
+.xp-punkt{width:8px; height:8px; border-radius:2px; background:var(--linie)}
+.xp-punkt.b{background:var(--gedaempft); opacity:.55}
+.xp-punkt.h{background:var(--akzent)}
+
+/* Nur die benutzten Adressen bekommen eine Zeile. Alles andere ist Rauschen -
+   40 leere Zeilen sagen genau so viel wie eine Zahl. */
+.xp-liste{margin-top:12px; border-top:1px solid var(--linie)}
+.xp-zeile{display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px;
+  align-items:baseline; padding:7px 0; border-bottom:1px solid var(--linie)}
+.xp-pfad{font-size:.72rem; color:var(--gedaempft);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.xp-adr{
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.76rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  color:var(--tinte); text-decoration:none;
+}
+.xp-adr:hover{color:var(--akzent)}
+.xp-wert{font-size:.8rem; text-align:right; font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; white-space:nowrap}
+.xp-wert.voll{color:var(--akzent); font-weight:700}
+.xp-bew{grid-column:2/4; font-size:.7rem; color:var(--gedaempft)}
+
+.xp-hinweis{margin-top:12px; font-size:.78rem; color:var(--gedaempft);
+  padding-left:11px; border-left:2px solid var(--linie)}
+.xp-warn{border-left-color:var(--schlecht); color:var(--schlecht)}
+.xp-fehl{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  padding:18px 22px; font-size:.92rem; line-height:1.6; text-wrap:pretty;
+}
+.xp-fehl.gefahr{border-color:var(--schlecht)}
+.xp-fehl.gefahr strong{color:var(--schlecht)}
+</style>
+
+{% include "suche.html" %}
+
+{% if not x.gefunden %}
+  <h1 class="objekt">{{ t.t("xpub.nf.title") }}</h1>
+  <div class="xp-fehl {{ 'gefahr' if x.grund == 'privat' }}">
+    {%- if x.grund == "privat" %}<strong>{{ t.t("xpub.nf.privat") }}</strong>
+    {%- elif x.grund == "mehrsig" %}{{ t.t("xpub.nf.mehrsig", v=x.zusatz) }}
+    {%- elif x.grund == "version" %}{{ t.t("xpub.nf.version", v=x.zusatz) }}
+    {%- elif x.grund == "form" %}{{ t.t("xpub.nf.form") }}
+    {%- else %}{{ t.t("xpub.nf.intern") }}{% endif -%}
+  </div>
+{% else %}
+
+<h1 class="objekt">{{ t.t("xpub.title") }}</h1>
+{# Absichtlich nur gekuerzt: der vollstaendige Schluessel steht in der
+   Adresszeile des Browsers, mehr muss er nicht. #}
+<p class="kennung">{{ x.kurz }}</p>
+
+{# Das Versprechen der ganzen Seite, als Symbol und halber Satz. #}
+<p class="xp-schutz">
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 2 4 5.5v6c0 4.6 3.2 8.9 8 10.5 4.8-1.6 8-5.9 8-10.5v-6z"/>
+    <path d="m9 12 2 2 4-4"/>
+  </svg>
+  <span>{{ t.t("xpub.local") }}</span>
+</p>
+
+<section class="xp-summe">
+  <div class="xp-gross">
+    {%- if x.gesamt_sat is not none -%}
+      {{ x.btc(x.gesamt_sat) }} <small>{{ t.t("unit.btc") }}</small>
+    {%- else -%}
+      {{ t.t("value.missing") }}
+    {%- endif -%}
+  </div>
+  <div class="xp-unter">
+    {%- if x.index_da -%}
+      {{ t.t("xpub.used", n=t.zahl(x.benutzt)) }} ·
+      {{ t.t("xpub.moves", n=t.zahl(x.bewegungen)) }} ·
+      {{ t.t("xpub.checked", n=t.zahl(x.geprueft)) }}
+    {%- else -%}
+      {{ t.t("xpub.checked", n=t.zahl(x.geprueft)) }}
+    {%- endif -%}
+  </div>
+  {% if x.offen_sat %}
+  <div class="xp-unter">{{ t.t("address.pending") }}: {{ x.btc(x.offen_sat) }} {{ t.t("unit.btc") }}</div>
+  {% endif %}
+</section>
+
+<div class="xp-marken">
+  <span class="xp-marke">{{ t.t("address.type") }} <b>{{ x.art }} · {{ x.skriptart }}</b></span>
+  <span class="xp-marke">{{ t.t("xpub.depth") }} <b>{{ t.zahl(x.tiefe) }}</b></span>
+  <span class="xp-marke">{{ t.t("xpub.child") }}
+    <b>{{ t.zahl(x.kindnummer) }}{{ "'" if x.kind_gehaertet }}</b></span>
+  <span class="xp-marke">{{ t.t("xpub.fingerprint") }} <b>{{ x.fingerabdruck }}</b></span>
+</div>
+
+{% if x.testnetz %}<p class="xp-hinweis">{{ t.t("xpub.testnet") }}</p>{% endif %}
+{% if not x.index_da and not x.testnetz %}
+  <p class="xp-hinweis">{{ t.t("xpub.noindex") }}</p>
+{% endif %}
+{% if x.unvollstaendig %}<p class="xp-hinweis xp-warn">{{ t.t("xpub.incomplete") }}</p>{% endif %}
+{% if x.index_da and x.leer %}<p class="xp-hinweis">{{ t.t("xpub.empty") }}</p>{% endif %}
+
+{% for kette in x.ketten %}
+<section class="xp-kapitel">
+  <div class="xp-kopf">
+    <h2>{{ t.t("xpub.chain.receive") if kette.nr == 0 else t.t("xpub.chain.change") }}</h2>
+    {% if kette.saldo_sat is not none %}
+    <span class="xp-saldo">{{ x.btc(kette.saldo_sat) }} <small>{{ t.t("unit.btc") }}</small></span>
+    {% endif %}
+  </div>
+
+  {% if x.index_da and kette.geprueft %}
+  {# Eine Saeule je Adresse, Index 0 links. Hoehe ist der Saldo (Wurzelmassstab,
+     damit eine einzelne grosse Zahlung die anderen nicht plattdrueckt). #}
+  <svg class="xp-streifen" viewBox="0 0 {{ kette.geprueft * 10 }} 96"
+       preserveAspectRatio="none" role="img" aria-label="{{ t.t('xpub.strip_alt') }}">
+    {% for a in kette.adressen %}
+      {% set voll = (a.anteil * 80) if a.saldo_sat else 0 %}
+      {% set hoehe = voll if voll >= 7 else (7 if a.benutzt else 3) %}
+      <rect x="{{ loop.index0 * 10 }}" y="{{ 93 - hoehe }}" width="8"
+            height="{{ hoehe }}" rx="1.5"
+            class="{{ 'xp-hat' if a.saldo_sat else ('xp-benutzt' if a.benutzt else '') }}">
+        <title>{{ a.pfad }} · {{ x.btc(a.saldo_sat) }} {{ t.t("unit.btc") }}</title>
+      </rect>
+    {% endfor %}
+  </svg>
+  <div class="xp-achse"><span>0</span><span>{{ t.zahl(kette.geprueft - 1) }}</span></div>
+  <div class="xp-legende">
+    <span><i class="xp-punkt h"></i>{{ t.t("xpub.legend.funds") }}</span>
+    <span><i class="xp-punkt b"></i>{{ t.t("xpub.legend.used") }}</span>
+    <span><i class="xp-punkt"></i>{{ t.t("xpub.unused", n=t.zahl(kette.geprueft - kette.benutzt)) }}</span>
+  </div>
+  {% endif %}
+
+  {% if kette.benutzte %}
+  <div class="xp-liste">
+    {% for a in kette.benutzte[:30] %}
+    <div class="xp-zeile">
+      <span class="xp-pfad">{{ a.pfad }}</span>
+      <a class="xp-adr" href="/address/{{ a.adresse }}">{{ a.adresse }}</a>
+      <span class="xp-wert {{ 'voll' if a.saldo_sat }}">
+        {%- if a.saldo_sat is not none %}{{ x.btc(a.saldo_sat) }}
+        {%- else %}{{ t.t("value.missing") }}{% endif -%}
+      </span>
+      {% if a.anzahl %}
+      <span class="xp-bew">{{ t.t("xpub.moves", n=t.zahl(a.anzahl)) }}
+        {%- if a.letzte_hoehe %} · {{ t.t("address.confirmed_at", h=t.zahl(a.letzte_hoehe)) }}{% endif -%}
+      </span>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% if kette.benutzte|length > 30 %}
+    <p class="xp-hinweis">{{ t.t("tx.more", n=t.zahl(kette.benutzte|length - 30)) }}</p>
+    {% endif %}
+  </div>
+  {% elif x.index_da %}
+  <p class="xp-hinweis">{{ t.t("xpub.chain_empty") }}</p>
+  {% endif %}
+
+  {% if kette.abgeschnitten %}
+  <p class="xp-hinweis xp-warn">{{ t.t("xpub.truncated", n=t.zahl(kette.geprueft)) }}</p>
+  {% elif x.index_da and kette.benutzt %}
+  <p class="xp-hinweis">{{ t.t("xpub.gap", n=t.zahl(x.luecke)) }}</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

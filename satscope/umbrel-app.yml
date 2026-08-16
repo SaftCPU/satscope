@@ -2,7 +2,7 @@ manifestVersion: 1
 id: satscope
 category: bitcoin
 name: Satscope
-version: "0.4.0"
+version: "0.5.0"
 tagline: Every number in context
 description: >-
   Requires a Bitcoin node and an Electrum server (electrs or Fulcrum) on

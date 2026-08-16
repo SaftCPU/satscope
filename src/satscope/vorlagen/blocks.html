@@ -1,0 +1,206 @@
+{% extends "grundlage.html" %}
+{% block titel %}{{ t.t("blocks.title") }} · {{ t.t("app.name") }}{% endblock %}
+
+{#
+  KONTEXT, den diese Vorlage erwartet:
+    t      Texte-Objekt (Pflicht)
+    bl     Ergebnis von blockliste.liste(TOR, vor) (Pflicht)
+    pfad   aktueller Pfad fuer die Sprachumschaltung (optional)
+    dauer  Funktion Sekunden -> Text, wie auf der Blockseite (optional)
+  Fehlt `dauer`, steht bei frischen Bloecken der UTC-Zeitpunkt statt "vor 3
+  Min." - satscope.js ersetzt ihn ohnehin, sobald JavaScript laeuft.
+
+  Bewusst OHNE die grosse Suchzeile aus suche.html: die Kopfleiste traegt auf
+  jeder Seite eine, und diese Seite ist eine Liste zum Anklicken, kein Ort zum
+  Tippen.
+#}
+
+{% block inhalt %}
+<style>
+/* Eigenes CSS der Blockliste. Es steht hier und nicht in satscope.css, weil
+   dort parallel gearbeitet wird; alle Klassen tragen den Vorsatz "bls-" und
+   koennen deshalb mit keinem fremden Namen kollidieren (die Blockseite nutzt
+   "bl-"). Farben ausschliesslich ueber die Variablen - eine feste Farbe waere
+   in genau einem der beiden Themes unlesbar. */
+.bls-kopf{display:flex; align-items:baseline; justify-content:space-between;
+  gap:10px; flex-wrap:wrap; margin-bottom:2px}
+.bls-spanne{font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:.78rem;
+  color:var(--gedaempft); font-variant-numeric:tabular-nums}
+
+/* Blaettern: oben und unten dieselbe Leiste. Ein totes Ziel bleibt als
+   blasser Text stehen, statt zu verschwinden - sonst springen die Knoepfe
+   beim Blaettern unter dem Finger weg. */
+.bls-blaettern{display:flex; gap:6px; align-items:center; margin:12px 0}
+.bls-blaettern a, .bls-blaettern span{
+  display:inline-block; padding:4px 11px; border-radius:8px; font-size:.8rem;
+  border:1px solid var(--linie); text-decoration:none; color:var(--gedaempft);
+  background:var(--flaeche); white-space:nowrap;
+}
+.bls-blaettern a:hover{color:var(--tinte); border-color:var(--akzent)}
+.bls-blaettern span{opacity:.4}
+.bls-blaettern .bls-luecke{flex:1; border:none; background:none; padding:0}
+
+/* Die Tabelle rollt notfalls fuer sich selbst - die Seite darf nicht quer
+   laufen, sonst rutscht auf dem Handy die ganze App zur Seite. */
+.bls-rahmen{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  overflow-x:auto;
+}
+table.bls{width:100%; border-collapse:collapse; font-size:.86rem}
+.bls th, .bls td{
+  padding:7px 12px; text-align:right; white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.bls thead th{
+  font-size:.68rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--gedaempft); border-bottom:1px solid var(--linie);
+}
+.bls tbody tr + tr td, .bls tbody tr + tr th{border-top:1px solid var(--linie)}
+.bls tbody tr:hover td, .bls tbody tr:hover th{background:var(--sanft)}
+.bls-hoehe{text-align:left}
+.bls-hoehe a{
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; font-weight:700;
+  color:var(--tinte); text-decoration:none;
+}
+.bls-hoehe a:hover{color:var(--akzent); text-decoration:underline}
+/* Spitzenmarke: der oberste Block der Kette. Ein Wort, kein Satz. */
+.bls-marke{
+  margin-left:7px; padding:1px 6px; border-radius:5px; font-size:.62rem;
+  font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--akzent); border:1px solid var(--akzent); vertical-align:1px;
+}
+.bls-zeit{color:var(--gedaempft); font-size:.8rem}
+
+/* Fuellstand: die Konsensgrenze als Strecke, der Block als Fuellung darin.
+   Steht unter der Groesse, weil er genau sie einordnet. */
+.bls-balken{
+  display:block; height:3px; border-radius:2px; background:var(--linie);
+  margin-top:4px; overflow:hidden;
+}
+.bls-balken i{display:block; height:100%; background:var(--akzent); border-radius:2px}
+
+/* Gebuehrenrate: die Faerbung sagt, wo die Zahl zwischen der billigsten und
+   der teuersten DIESER Seite liegt. Sie traegt nichts allein - die Zahl steht
+   daneben -, sie macht die Reihe nur auf einen Blick lesbar. */
+.bls-geb{font-weight:600}
+.bls-heiss{color:color-mix(in srgb, var(--akzent) calc(var(--hitze) * 100%), var(--gedaempft))}
+.bls-fehlt{color:var(--gedaempft)}
+
+@media (prefers-reduced-motion: no-preference){
+  .bls-balken i{animation:bls-breit .5s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes bls-breit{from{width:0}}
+}
+/* Unter 560 px fallen die beiden Spalten weg, die man am ehesten entbehrt:
+   die Anzahl und der Lohn. Hoehe, Zeit, Groesse und Preis bleiben - danach
+   sucht man einen Block. */
+@media (max-width:560px){
+  .bls-tx, .bls-lohn{display:none}
+  .bls th, .bls td{padding:7px 9px}
+}
+</style>
+
+{% macro blaettern() %}
+<nav class="bls-blaettern">
+  {% if bl.neuer %}
+    <a href="{{ bl.neuer }}" rel="prev">&larr; {{ t.t("blocks.newer") }}</a>
+  {% else %}
+    <span>&larr; {{ t.t("blocks.newer") }}</span>
+  {% endif %}
+  {% if bl.aelter %}
+    <a href="{{ bl.aelter }}" rel="next">{{ t.t("blocks.older") }} &rarr;</a>
+  {% else %}
+    <span>{{ t.t("blocks.older") }} &rarr;</span>
+  {% endif %}
+  <span class="bls-luecke"></span>
+  {% if bl.zur_spitze %}
+    <a href="{{ bl.zur_spitze }}">{{ t.t("blocks.newest") }}</a>
+  {% endif %}
+</nav>
+{% endmacro %}
+
+<div class="bls-kopf">
+  <h1 class="objekt">{{ t.t("blocks.title") }}</h1>
+  {% if bl.oben is not none and bl.unten is not none %}
+    {# Welcher Ausschnitt der Kette hier steht - zwei Zahlen statt eines Satzes. #}
+    <p class="bls-spanne">{{ t.zahl(bl.unten) }} – {{ t.zahl(bl.oben) }}</p>
+  {% endif %}
+</div>
+
+{% if not bl.erreichbar %}
+  {# Kein erfundener Ersatz: der Knoten schweigt, also steht hier nichts. #}
+  <p class="hinweis">{{ t.t("node.unreachable") }}</p>
+{% elif not bl.bloecke %}
+  <p class="hinweis">{{ t.t("blocks.none") }}</p>
+  {{ blaettern() }}
+{% else %}
+
+{{ blaettern() }}
+
+<div class="bls-rahmen">
+<table class="bls">
+  <thead>
+    <tr>
+      <th scope="col" class="bls-hoehe">{{ t.t("blocks.col.height") }}</th>
+      <th scope="col">{{ t.t("blocks.col.time") }}</th>
+      <th scope="col" class="bls-tx">{{ t.t("blocks.col.txs") }}</th>
+      <th scope="col">{{ t.t("blocks.col.size") }}</th>
+      <th scope="col">{{ t.t("blocks.col.fee") }}</th>
+      <th scope="col" class="bls-lohn">{{ t.t("blocks.col.reward") }}</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for b in bl.bloecke %}
+    <tr>
+      <th scope="row" class="bls-hoehe">
+        <a href="/block/{{ b.hoehe }}">{{ t.zahl(b.hoehe) }}</a>
+        {%- if b.ist_spitze %}<span class="bls-marke">{{ t.t("blocks.tip") }}</span>{% endif -%}
+      </th>
+
+      {# Frische Bloecke bekommen das mitlaufende Alter (satscope.js liest
+         data-alter-seit und zaehlt im Sekundentakt weiter), aeltere ein Datum:
+         "vor 114.000 Stunden" liest kein Mensch. Der erste Text kommt vom
+         Server, sonst stuende ohne JavaScript dauerhaft ein Strich. #}
+      <td class="bls-zeit" title="{{ b.zeit_text or '' }}">
+        {%- if b.frisch %}
+          <span data-alter-seit="{{ b.zeit }}">
+            {%- if dauer is defined and b.alter is not none %}{{ dauer(b.alter) }}
+            {%- else %}{{ b.zeit_kurz }}{% endif -%}
+          </span>
+        {%- elif b.zeit_kurz %}{{ b.zeit_kurz }}
+        {%- else %}<span class="bls-fehlt">{{ t.t("value.missing") }}</span>{% endif -%}
+      </td>
+
+      <td class="bls-tx">
+        {%- if b.txs is not none %}{{ t.zahl(b.txs) }}
+        {%- else %}<span class="bls-fehlt">{{ t.t("value.missing") }}</span>{% endif -%}
+      </td>
+
+      <td>
+        {%- if b.groesse is not none %}{{ t.zahl(b.groesse / 1000, 0) }} kB
+        {%- else %}<span class="bls-fehlt">{{ t.t("value.missing") }}</span>{% endif -%}
+        {% if b.fuellung is not none %}
+          <span class="bls-balken" title="{{ t.t('blocks.fill', p=t.zahl(b.fuellung, 0)) }}">
+            <i style="width:{{ "%.1f"|format(b.fuellung if b.fuellung < 100 else 100) }}%"></i>
+          </span>
+        {% endif %}
+      </td>
+
+      <td class="bls-geb {{ 'bls-heiss' if b.hitze is not none }}"
+          {%- if b.hitze is not none %} style="--hitze:{{ b.hitze }}"{% endif %}>
+        {%- if b.median_rate is not none %}{{ t.zahl(b.median_rate, 2) }}
+        {%- else %}<span class="bls-fehlt">{{ t.t("value.missing") }}</span>{% endif -%}
+      </td>
+
+      <td class="bls-lohn">
+        {%- if b.lohn_sat is not none %}{{ t.zahl(b.lohn_sat / 100000000, 4) }}
+        {%- else %}<span class="bls-fehlt">{{ t.t("value.missing") }}</span>{% endif -%}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{{ blaettern() }}
+{% endif %}
+{% endblock %}

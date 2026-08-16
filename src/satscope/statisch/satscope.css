@@ -113,3 +113,20 @@ body{
   .geb-wert{font-size:1.25rem}
   .geb{padding:11px 6px}
 }
+
+/* --- Hauptnavigation ---
+   Waagerecht scrollbar statt umbrechend: auf einem schmalen Handy sind sechs
+   Punkte breiter als der Bildschirm, und eine zweite Zeile kostet dort mehr
+   Platz als das Wischen. */
+.hauptnav{
+  display:flex; gap:2px; padding:0 14px; background:var(--flaeche);
+  border-bottom:1px solid var(--linie); overflow-x:auto;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.hauptnav::-webkit-scrollbar{display:none}
+.hauptnav a{
+  flex:none; padding:10px 12px; font-size:.83rem; color:var(--gedaempft);
+  text-decoration:none; border-bottom:2px solid transparent; white-space:nowrap;
+}
+.hauptnav a:hover{color:var(--tinte)}
+.hauptnav a.hier{color:var(--akzent); border-bottom-color:var(--akzent); font-weight:600}

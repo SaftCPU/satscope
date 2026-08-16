@@ -60,6 +60,9 @@
   </div>
 </section>
 
+{# Nicht ausgegebene Ausgaenge, Erstbenutzung, QR-Code und Staubgrenze. #}
+{% include "teile/adressdetails.html" %}
+
 {% if u.zu_gross %}
   <p class="hinweis">{{ t.t("address.toobig", n=t.zahl(u.anzahl)) }}</p>
 {% elif u.verlauf %}

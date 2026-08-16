@@ -1,0 +1,265 @@
+/* Gebuehrenseite (/gebuehren).
+
+   Eigene Datei und nicht satscope.css: dort arbeitet gerade jemand anders, und
+   zwei Schreiber auf einer Datei geben Konflikte statt Fortschritt. ALLE Klassen
+   tragen deshalb den Vorsatz "gb-" und koennen sich mit nichts beissen.
+
+   Farben ausschliesslich ueber die Themenvariablen aus satscope.css
+   (--grund/--flaeche/--tinte/--gedaempft/--linie/--akzent/--gut/--schlecht).
+   Ein fester Hexwert waere in genau einem der beiden Themen unlesbar - das ist
+   fuer diese Seite kein theoretisches Risiko, denn ihre wichtigste Aussage ist
+   ein FARBUNTERSCHIED (Saeule ueber oder unter der Prognoselinie).
+
+   Die Seite kommt ohne eine Zeile JavaScript aus. Alles, was sie zeigt, steht
+   schon im gelieferten HTML; es gibt nichts, was sich ohne neuen Block aendern
+   wuerde. */
+
+.gb-unterzeile{color:var(--gedaempft); font-size:.88rem; margin:0 0 18px}
+
+.gb-kapitel{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  padding:16px 22px 18px; margin-top:16px;
+}
+.gb-kapitel h2{
+  font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gedaempft); margin:0 0 12px;
+}
+.gb-hilfe{
+  font-size:.75rem; color:var(--gedaempft); margin:10px 0 0; line-height:1.5;
+  text-wrap:pretty;
+}
+
+/* --------------------------------------------------- Die Leitzahl
+
+   Der ganze Befund in einer Zahl: wie viele der letzten Bloecke mehr verlangt
+   haben, als die Schaetzung fuer den naechsten Block sagt. Sie steht bewusst
+   VOR allen Erklaerungen - wer nur eine Sekunde hinsieht, soll genau das
+   mitnehmen. */
+.gb-leit{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  border-left:3px solid var(--gedaempft); padding:16px 22px; margin-bottom:4px;
+}
+.gb-leit.warn{border-left-color:var(--schlecht)}
+.gb-leitzahl{
+  margin:0; line-height:1; font-variant-numeric:tabular-nums;
+  letter-spacing:-.04em;
+}
+.gb-leitzahl strong{font-size:2.6rem; font-weight:800; color:var(--schlecht)}
+.gb-leitzahl span{font-size:1.2rem; font-weight:600; color:var(--gedaempft)}
+.gb-leit:not(.warn) .gb-leitzahl strong{color:var(--gut)}
+.gb-leitsatz{margin:10px 0 0; font-size:.95rem; line-height:1.55; text-wrap:pretty}
+.gb-leitfuss{
+  margin:8px 0 0; font-size:.78rem; color:var(--gedaempft);
+  padding-left:11px; border-left:2px solid var(--linie);
+}
+
+/* --------------------------------------------------- Saeulen je Block
+
+   Eine Saeule je Block, Hoehe = Eintrittspreis. Der Massstab ist der groesste
+   vorkommende Wert ODER die Prognoselinie, je nachdem, was hoeher liegt -
+   sonst laege die Linie ausserhalb des Bildes, und genau ihr Verhaeltnis zu den
+   Saeulen ist die Aussage. */
+.gb-chart{margin:4px 0 14px}
+.gb-saeulen{
+  position:relative; display:flex; align-items:flex-end; gap:4px; height:132px;
+  border-bottom:1px solid var(--linie); padding-bottom:1px;
+}
+.gb-saeule{
+  flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-end;
+  align-items:stretch; height:100%; text-decoration:none; color:inherit;
+}
+/* Der Schacht nimmt sich, was nach der Zahl uebrig ist, und die Saeule misst
+   ihre Prozent an IHM. Stuende die Saeule direkt in der Spalte, waeren 100 %
+   die ganze Spalte - die Zahl darueber wuerde oben herausgedrueckt und liefe in
+   den Abschnitt davor. min-height:0 muss dabeistehen, sonst weigert sich ein
+   Flex-Element zu schrumpfen und der Schacht bleibt zu hoch. */
+.gb-schacht{
+  flex:1 1 auto; min-height:0; display:flex; align-items:flex-end;
+}
+.gb-saeule i{
+  display:block; width:100%; border-radius:3px 3px 0 0; min-height:2px;
+  background:color-mix(in srgb, var(--akzent) 55%, transparent);
+  transform-origin:bottom;
+}
+/* Die eine Farbe, um die es geht: dieser Block verlangte MEHR, als die
+   Schaetzung fuer den naechsten Block sagt. */
+.gb-saeule.drueber i{background:var(--schlecht)}
+/* War der Block nicht voll, sagt sein Eintrittspreis nichts ueber Wettbewerb -
+   er nahm einfach jeden. Gestreift statt gefuellt, damit man das sieht, ohne
+   dass ein Satz es erklaeren muss. */
+.gb-saeule.hohl i{
+  background:repeating-linear-gradient(135deg,
+    color-mix(in srgb, var(--akzent) 45%, transparent) 0 4px,
+    transparent 4px 8px);
+  border:1px solid color-mix(in srgb, var(--akzent) 45%, transparent);
+  border-bottom:none;
+}
+.gb-saeule.drueber.hohl i{
+  background:repeating-linear-gradient(135deg,
+    var(--schlecht) 0 4px, transparent 4px 8px);
+  border-color:var(--schlecht);
+}
+/* Ein Block ohne Statistik behaelt seinen Platz und bleibt leer. Weglassen
+   wuerde das Band stauchen und die Luecke verstecken. */
+.gb-saeule.leer i{background:var(--linie); height:3px; width:100%}
+.gb-saeule:hover i{filter:brightness(1.15)}
+.gb-saeulenwert{
+  flex:none; font-size:.6rem; color:var(--gedaempft); text-align:center;
+  line-height:1.2; font-variant-numeric:tabular-nums; margin-bottom:2px;
+  white-space:nowrap;
+}
+
+/* Die Prognoselinie liegt UEBER den Saeulen und quer durch das Bild.
+   Bewusst KEIN opacity auf dem Kasten: das wuerde auch die Beschriftung darin
+   blass machen, und gerade sie muss lesbar bleiben. Die Zurueckhaltung steckt
+   deshalb in der Farbe der Linie selbst. */
+.gb-linie{
+  position:absolute; left:0; right:0; height:0; pointer-events:none;
+  border-top:1px dashed color-mix(in srgb, var(--tinte) 65%, transparent);
+}
+.gb-linie span{
+  position:absolute; right:0; bottom:3px; font-size:.62rem; font-weight:600;
+  color:var(--tinte); background:var(--flaeche); padding:0 4px; border-radius:4px;
+  white-space:nowrap;
+}
+.gb-achse{
+  display:flex; justify-content:space-between; padding-top:5px;
+  font-size:.68rem; color:var(--gedaempft);
+}
+
+/* Guenstigster, mittlerer, teuerster Eintritt - die drei Zahlen, aus denen die
+   Empfehlung unten ihren Boden nimmt. */
+.gb-drei{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0 4px}
+.gb-drei-feld{
+  border:1px solid var(--linie); border-radius:10px; padding:9px 6px;
+  text-align:center; display:flex; flex-direction:column; gap:3px;
+}
+.gb-drei-feld.mitte{border-color:color-mix(in srgb, var(--akzent) 45%, var(--linie))}
+.gb-klein{
+  font-size:.62rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--gedaempft);
+}
+.gb-mittel{
+  font-size:1.15rem; font-weight:750; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
+.gb-drei-feld.mitte .gb-mittel{color:var(--akzent)}
+
+/* --------------------------------------------------- Empfehlung
+
+   Zwei Segmente in EINER Spur: der helle Teil ist die Schaetzung des Knotens,
+   der volle Teil die Empfehlung. Was dazwischen liegt, ist kein erfundener
+   Aufschlag, sondern der gemessene Mehrbedarf der letzten Bloecke. */
+.gb-reihe{padding:11px 0; border-top:1px solid var(--linie)}
+.gb-reihe:first-of-type{border-top:none}
+.gb-reihe-kopf{
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  margin-bottom:6px;
+}
+.gb-ziel{font-size:.84rem; color:var(--gedaempft)}
+.gb-satz{
+  font-size:1.05rem; font-weight:750; letter-spacing:-.02em; color:var(--akzent);
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.gb-satz em{
+  font-style:normal; font-size:.6rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--gedaempft); margin-left:4px;
+}
+.gb-spur{
+  position:relative; height:11px; border-radius:6px; background:var(--linie);
+  overflow:hidden;
+}
+.gb-spur i{position:absolute; left:0; top:0; height:100%; border-radius:6px}
+.gb-voll{background:var(--akzent)}
+.gb-teil{background:color-mix(in srgb, var(--akzent) 32%, var(--flaeche))}
+.gb-herleitung{
+  margin:6px 0 0; font-size:.75rem; color:var(--gedaempft); line-height:1.45;
+}
+.gb-auf{
+  display:inline-block; margin-left:6px; padding:1px 7px; border-radius:6px;
+  font-weight:700; font-variant-numeric:tabular-nums;
+  color:var(--schlecht);
+  background:color-mix(in srgb, var(--schlecht) 12%, transparent);
+}
+
+.gb-legende{
+  display:flex; align-items:center; flex-wrap:wrap; gap:5px 12px;
+  font-size:.72rem; color:var(--gedaempft); margin:0 0 10px;
+}
+.gb-legende.klein{margin:8px 0 2px; font-size:.68rem}
+.gb-punkt{
+  width:9px; height:9px; border-radius:3px; flex:none; display:inline-block;
+  background:var(--gedaempft);
+}
+.gb-punkt+.gb-punkt{margin-left:6px}
+.gb-punkt.prognose{background:color-mix(in srgb, var(--akzent) 32%, var(--flaeche));
+  outline:1px solid var(--linie)}
+.gb-punkt.aufschlag{background:var(--akzent)}
+
+/* --------------------------------------------------- Tafeln (Schaetzer, Rechner)
+
+   Ein Gitter statt einer <table>: bei 560 px Inhaltsbreite muessen die Spalten
+   verlaesslich gleich breit bleiben, und minmax(0,1fr) macht genau das, ohne
+   dass eine lange Zelle den Rest zusammenschiebt. */
+.gb-tafel{display:grid; gap:0 8px; align-items:baseline}
+.gb-vier{grid-template-columns:minmax(0,1.5fr) repeat(3, minmax(0,1fr))}
+.gb-kopfzelle{
+  font-size:.62rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--gedaempft); padding:0 0 7px; border-bottom:1px solid var(--linie);
+}
+.gb-zelle{
+  font-size:.86rem; padding:9px 0; border-bottom:1px solid var(--linie);
+  min-width:0; overflow-wrap:anywhere;
+}
+.gb-tafel .rechts{text-align:right}
+.gb-tafel .zahl{
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-variant-numeric:tabular-nums;
+}
+.gb-fussnote{
+  display:block; font-style:normal; font-weight:400; letter-spacing:0;
+  text-transform:none; font-size:.66rem; color:var(--gedaempft); margin-top:2px;
+}
+.gb-hoch{color:var(--schlecht); font-weight:700}
+.gb-tief{color:var(--gut); font-weight:700}
+
+/* --------------------------------------------------- Eimer des Rohschaetzers
+
+   Die Buchfuehrung des Schaetzers ueber sich selbst: von allem, was er in
+   diesem Gebuehreneimer beobachtet hat, wurde ein Teil im Ziel bestaetigt, ein
+   Teil spaeter, ein Teil wartet noch und ein Teil ist aus dem Mempool gefallen,
+   ohne je bestaetigt zu werden. Der letzte Streifen ist der wichtige. */
+.gb-eimer{margin-top:16px; padding-top:14px; border-top:1px solid var(--linie)}
+.gb-stapel{
+  display:flex; height:13px; border-radius:6px; overflow:hidden;
+  background:var(--linie);
+}
+.gb-stapel i{display:block; height:100%; min-width:1px}
+.gb-stapel .s1, .gb-punkt.s1{background:var(--gut)}
+.gb-stapel .s2, .gb-punkt.s2{background:color-mix(in srgb, var(--gut) 35%, var(--flaeche))}
+.gb-stapel .s3, .gb-punkt.s3{background:var(--gedaempft)}
+.gb-stapel .s4, .gb-punkt.s4{background:var(--schlecht)}
+
+/* --------------------------------------------------- Schmale Geraete */
+@media (max-width:480px){
+  /* Zwoelf Saeulen auf einem Telefon sind rund 20 px breit - eine Zahl passt
+     dort nicht mehr hinein, ohne sich zu ueberlappen. Die Werte stehen im
+     title-Attribut und in den drei Feldern darunter weiterhin da. */
+  .gb-saeulenwert{display:none}
+  .gb-saeulen{gap:2px; height:112px}
+  .gb-kapitel{padding:14px 15px 16px}
+  .gb-leit{padding:14px 15px}
+  .gb-leitzahl strong{font-size:2.1rem}
+  .gb-vier{grid-template-columns:minmax(0,1.3fr) repeat(3, minmax(0,1fr))}
+  .gb-zelle, .gb-kopfzelle{font-size:.78rem}
+  .gb-drei{gap:6px}
+  .gb-mittel{font-size:1rem}
+}
+
+/* Bewegung nur, wenn der Leser sie nicht abbestellt hat. */
+@media (prefers-reduced-motion: no-preference){
+  .gb-saeule i{animation:gb-wachsen .5s cubic-bezier(.2,.7,.3,1) both}
+  .gb-spur i{animation:gb-breit .6s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes gb-wachsen{from{transform:scaleY(0)} to{transform:scaleY(1)}}
+  @keyframes gb-breit{from{width:0}}
+}

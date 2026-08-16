@@ -62,6 +62,18 @@ def main():
     ueber = sorted(set(sprache._laden("de")) - set(sprache._laden("en")))
     pruefe("kein Schluessel ist nur auf Deutsch da", ueber, [])
 
+    print("\nAdressen: gueltige Pruefsumme ist nicht genug")
+    from .adresse import UnbekannteAdresse, script_von_adresse
+    for schlecht, warum in (("bc1gmk9yu", "leere Nutzlast, Pruefsumme gueltig"),
+                            ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5", "Pruefsumme falsch"),
+                            ("tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx", "Testnet")):
+        try:
+            script_von_adresse(schlecht)
+            FEHLER.append("%s wurde akzeptiert" % schlecht)
+            print("  FEHLER  %s" % warum)
+        except UnbekannteAdresse:
+            print("  ok      %s" % warum)
+
     print("\nRPC-Tor: Kostenklassen sind wirklich getrennt")
     tor = Tor()
     pruefe("billige Methode ist bekannt", tor.kennt("getblockchaininfo"), True)
@@ -75,7 +87,7 @@ def main():
     except NichtErlaubt:
         print("  ok      teurer Aufruf abgewiesen")
 
-    print("\n%d Pruefungen, %d Fehler" % (20, len(FEHLER)))
+    print("\n%d Pruefungen, %d Fehler" % (23, len(FEHLER)))
     for f in FEHLER:
         print("  " + f)
     return 1 if FEHLER else 0

@@ -1,0 +1,324 @@
+{% extends "grundlage.html" %}
+{% block titel %}{{ t.t("gebuehren.title") }} · {{ t.t("app.name") }}{% endblock %}
+
+{% block inhalt %}
+{#
+  Die Gebuehrenseite.
+
+  KONTEXT, den diese Vorlage erwartet:
+      t     Texte-Objekt               (Pflicht)
+      pfad  aktueller Pfad             (fuer die Sprachumschaltung in der Kopfleiste)
+      g     Ergebnis von gebuehren.seite(TOR)   (Pflicht)
+
+  Das Stylesheet wird HIER verlinkt und nicht in grundlage.html: an der
+  Grundlage arbeitet gerade jemand anders, und zwei Schreiber auf einer Datei
+  geben Konflikte statt Fortschritt. Ein <link rel="stylesheet"> im Rumpf ist
+  gueltiges HTML5 und wird von jedem Browser beachtet. Sobald grundlage.html
+  einen Block fuer zusaetzliche Stylesheets hat, gehoert die Zeile dorthin.
+#}
+<link rel="stylesheet" href="/statisch/gebuehren.css">
+
+<h1 class="objekt">{{ t.t("gebuehren.title") }}</h1>
+<p class="gb-unterzeile">{{ t.t("gebuehren.subtitle") }}</p>
+
+{% if not g.erreichbar %}
+  {# Der Knoten schweigt. Kein Ersatz, keine halbe Seite, keine erfundene Zahl. #}
+  <p class="hinweis">{{ t.t("node.unreachable") }}</p>
+{% else %}
+
+<!-- ================================================== Die Leitzahl -->
+{#
+  Der Befund, um den es auf dieser Seite geht, steht ganz oben und als einzige
+  grosse Zahl: wie oft die aktuelle Schaetzung fuer den naechsten Block unter
+  dem lag, was die letzten Bloecke wirklich verlangt haben.
+#}
+<section class="gb-leit{{ ' warn' if g.vergleich.darueber }}">
+  {% if g.vergleich.darueber is not none %}
+    <p class="gb-leitzahl">
+      <strong>{{ t.zahl(g.vergleich.darueber) }}</strong><span>/{{ t.zahl(g.vergleich.n) }}</span>
+    </p>
+    <p class="gb-leitsatz">
+      {%- if g.vergleich.darueber == 0 %}{{ t.t("gebuehren.miss.keiner", gesamt=t.zahl(g.vergleich.n)) }}
+      {%- else %}{{ t.t("gebuehren.miss.satz", n=t.zahl(g.vergleich.darueber),
+            gesamt=t.zahl(g.vergleich.n), rate=t.zahl(g.vergleich.prognose, 2)) }}{% endif -%}
+    </p>
+    {% if g.vergleich.faktor_median is not none %}
+    <p class="gb-leitfuss">{{ t.t("gebuehren.miss.faktor",
+        f=t.zahl(g.vergleich.faktor_median, 2), max=t.zahl(g.vergleich.faktor_max, 2)) }}</p>
+    {% endif %}
+  {% else %}
+    <p class="gb-leitsatz">{{ t.t("gebuehren.miss.leer") }}</p>
+  {% endif %}
+</section>
+
+<!-- ================================================== Was die Bloecke verlangten -->
+<section class="gb-kapitel">
+  <h2>{{ t.t("gebuehren.bloecke.title") }}</h2>
+
+  {% if not g.w.genug %}
+    <p class="gb-hilfe">{{ t.t("gebuehren.bloecke.zuwenig") }}</p>
+  {% else %}
+
+  {#
+    Eine Saeule je Block: der Eintrittspreis, unter dem nur noch mitgezogene
+    Transaktionen lagen. Die gestrichelte Linie ist die aktuelle Schaetzung fuer
+    den naechsten Block. Jede Saeule DARUEBER ist ein Block, in den diese
+    Schaetzung nicht hineingereicht haette - das ist die ganze Aussage der Seite,
+    und sie steht als Bild da, nicht als Satz.
+  #}
+  <div class="gb-chart">
+    <div class="gb-saeulen">
+      {% if g.chart_linie_p is not none %}
+        <div class="gb-linie" style="bottom:{{ "%.2f"|format(g.chart_linie_p) }}%">
+          <span>{{ t.t("gebuehren.bloecke.linie", n=t.zahl(g.vergleich.prognose, 2)) }}</span>
+        </div>
+      {% endif %}
+      {% for b in g.bloecke %}
+        {% if b.eintritt is not none and b.anteil_p is not none %}
+          {# Der "Schacht" ist kein Schmuck: die Hoehe der Saeule ist ein
+             Prozentwert und bezieht sich auf das Elternelement. Stuende sie
+             direkt in der Spalte, waeren 100 % die GANZE Spalte - die Zahl
+             darueber wuerde oben herausgedrueckt und liefe in den Abschnitt
+             davor. Der Schacht nimmt sich, was nach der Zahl uebrig ist. #}
+          <a class="gb-saeule{{ ' drueber' if b.ueber_prognose }}{{ ' hohl' if not b.voll }}"
+             href="/block/{{ b.hoehe }}"
+             title="{{ t.t('gebuehren.bloecke.saeule', h=t.zahl(b.hoehe), n=t.zahl(b.eintritt, 2)) }}">
+            <span class="gb-saeulenwert">{{ t.zahl(b.eintritt, 1) }}</span>
+            <span class="gb-schacht"><i style="height:{{ "%.2f"|format(b.anteil_p) }}%"></i></span>
+          </a>
+        {% else %}
+          {# Ein Block ohne Statistik behaelt seinen Platz und zeigt dort nichts.
+             Weglassen wuerde das Band stauchen, und die Luecke saehe aus wie ein
+             Fenster, das eben kuerzer ist. Auf einem beschnittenen Knoten ist
+             dieser Fall normal, kein Fehler. #}
+          <span class="gb-saeule leer"
+                title="{{ t.t('gebuehren.bloecke.saeule_leer', h=t.zahl(b.hoehe)) }}">
+            <span class="gb-saeulenwert">{{ t.t("value.missing") }}</span>
+            <span class="gb-schacht"><i></i></span>
+          </span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <div class="gb-achse">
+      <span>{{ t.t("gebuehren.bloecke.aelter") }}</span>
+      <span>{{ t.t("gebuehren.bloecke.neuer") }}</span>
+    </div>
+  </div>
+
+  <div class="gb-drei">
+    <div class="gb-drei-feld">
+      <span class="gb-klein">{{ t.t("gebuehren.bloecke.billigster") }}</span>
+      <span class="gb-mittel">{{ t.zahl(g.w.p10_min, 2) }}</span>
+    </div>
+    <div class="gb-drei-feld mitte">
+      <span class="gb-klein">{{ t.t("gebuehren.bloecke.mitte") }}</span>
+      <span class="gb-mittel">{{ t.zahl(g.w.p10_median, 2) }}</span>
+    </div>
+    <div class="gb-drei-feld">
+      <span class="gb-klein">{{ t.t("gebuehren.bloecke.teuerster") }}</span>
+      <span class="gb-mittel">{{ t.zahl(g.w.p10_max, 2) }}</span>
+    </div>
+  </div>
+
+  <div class="zeile">
+    <span class="k">{{ t.t("gebuehren.bloecke.absolut") }}</span>
+    <span class="w">
+      {%- if g.w.min_median is not none %}{{ t.zahl(g.w.min_median, 2) }} {{ t.t("unit.satvb") }}
+      {%- else %}{{ t.t("value.missing") }}{% endif -%}
+    </span>
+  </div>
+  <div class="zeile">
+    <span class="k">{{ t.t("gebuehren.bloecke.voll") }}</span>
+    <span class="w">
+      {%- if g.w.voll_anzahl is not none %}{{ t.zahl(g.w.voll_anzahl) }} / {{ t.zahl(g.w.n) }}
+      {%- else %}{{ t.t("value.missing") }}{% endif -%}
+    </span>
+  </div>
+  {% if g.mempool_min_sat_vb is not none %}
+  <div class="zeile">
+    <span class="k">{{ t.t("gebuehren.bloecke.knotengrenze") }}</span>
+    <span class="w">{{ t.zahl(g.mempool_min_sat_vb, 2) }} {{ t.t("unit.satvb") }}</span>
+  </div>
+  {% endif %}
+
+  <p class="gb-hilfe">{{ t.t("gebuehren.bloecke.hilfe") }}</p>
+  {% if g.w.stunden is not none %}
+  <p class="gb-hilfe">{{ t.t("gebuehren.bloecke.fenster",
+      n=t.zahl(g.w.gemessen), std=t.zahl(g.w.stunden, 1)) }}</p>
+  {% endif %}
+  {% endif %}
+</section>
+
+<!-- ================================================== Empfehlung -->
+<section class="gb-kapitel">
+  <h2>{{ t.t("gebuehren.empf.title") }}</h2>
+
+  {#
+    Der helle Teil des Balkens ist die Schaetzung des Knotens, der volle Teil die
+    Empfehlung. Die Differenz ist kein Aufschlag, den wir erfunden haben, sondern
+    genau das, was die letzten Bloecke mehr verlangt haben.
+  #}
+  <div class="gb-legende">
+    <span class="gb-punkt prognose"></span>{{ t.t("gebuehren.empf.legende.prognose") }}
+    <span class="gb-punkt aufschlag"></span>{{ t.t("gebuehren.empf.legende.aufschlag") }}
+  </div>
+
+  {% for e in g.empfehlungen %}
+  <div class="gb-reihe">
+    <div class="gb-reihe-kopf">
+      <span class="gb-ziel">{{ t.t("gebuehren.ziel." ~ e.ziel) }}</span>
+      <span class="gb-satz">
+        {%- if e.empfehlung is not none %}{{ t.zahl(e.empfehlung, 2) }}<em>{{ t.t("unit.satvb") }}</em>
+        {%- else %}{{ t.t("value.missing") }}{% endif -%}
+      </span>
+    </div>
+    <div class="gb-spur">
+      {% if e.empfehlung_p is not none %}
+        <i class="gb-voll" style="width:{{ "%.2f"|format(e.empfehlung_p) }}%"></i>
+      {% endif %}
+      {% if e.prognose_p is not none %}
+        <i class="gb-teil" style="width:{{ "%.2f"|format(e.prognose_p) }}%"></i>
+      {% endif %}
+    </div>
+    <p class="gb-herleitung">
+      {#- "gemessen" und nicht "n": ein Block ohne Statistik zaehlt zum Fenster,
+          aber nicht zum Median. Die Zahl im Satz muss die sein, auf der die
+          Empfehlung wirklich beruht. -#}
+      {%- if e.gebunden == "bloecke" %}{{ t.t("gebuehren.empf.boden." ~ e.boden_art, n=t.zahl(g.w.gemessen)) }}
+      {%- elif e.gebunden == "mempool" %}{{ t.t("gebuehren.empf.gebunden.mempool") }}
+      {%- elif e.gebunden == "prognose" %}{{ t.t("gebuehren.empf.gebunden.prognose",
+            n=t.zahl(e.prognose, 2)) }}
+      {%- else %}{{ t.t("gebuehren.empf.gebunden.nichts") }}{% endif -%}
+      {%- if e.aufschlag_p is not none %}
+        <span class="gb-auf">{{ t.t("gebuehren.empf.aufschlag", p=t.zahl(e.aufschlag_p, 0)) }}</span>
+      {%- endif %}
+    </p>
+  </div>
+  {% endfor %}
+
+  <p class="gb-hilfe">{{ t.t("gebuehren.empf.hilfe") }}</p>
+</section>
+
+<!-- ================================================== Beide Schaetzer -->
+<section class="gb-kapitel">
+  <h2>{{ t.t("gebuehren.schaetzer.title") }}</h2>
+
+  <div class="gb-tafel gb-vier">
+    <span class="gb-kopfzelle">{{ t.t("gebuehren.schaetzer.spalte.ziel") }}</span>
+    <span class="gb-kopfzelle rechts">{{ t.t("gebuehren.schaetzer.spalte.glatt") }}</span>
+    <span class="gb-kopfzelle rechts">{{ t.t("gebuehren.schaetzer.spalte.roh") }}</span>
+    <span class="gb-kopfzelle rechts">{{ t.t("gebuehren.schaetzer.spalte.abweichung") }}</span>
+    {% for s in g.schaetzungen %}
+      {# Eigener Schluessel fuer den Einzahlfall: "antwortete fuer 1 Bloecke"
+         waere genau die Sorte Fehler, die eine Uebersetzung billig aussehen
+         laesst. Der Katalog fuehrt das Muster schon (peers.inbound.yes.one). #}
+      <span class="gb-zelle">{{ t.t("gebuehren.ziel." ~ s.ziel) }}
+        {%- if s.anderes_ziel %}
+        <em class="gb-fussnote">{{ t.t("gebuehren.schaetzer.anderes_ziel.one"
+              if s.geantwortet == 1 else "gebuehren.schaetzer.anderes_ziel",
+              n=t.zahl(s.geantwortet)) }}</em>
+        {%- endif %}
+      </span>
+      <span class="gb-zelle rechts zahl">{{ t.zahl(s.glatt, 2) }}</span>
+      <span class="gb-zelle rechts zahl">{{ t.zahl(s.roh, 2) }}</span>
+      {# Vorzeichen und Prozentzeichen kommen aus dem Katalog, nicht aus der
+         Vorlage: deutsch steht ein Leerzeichen vor dem Prozentzeichen, englisch
+         nicht. Fest verdrahtet waere genau eine der beiden Sprachen falsch. #}
+      <span class="gb-zelle rechts zahl">
+        {%- if s.abweichung_p is not none -%}
+          <span class="{{ 'gb-hoch' if s.abweichung_p > 0 else 'gb-tief' }}">
+            {{- t.t("gebuehren.abstand.hoch" if s.abweichung_p > 0 else "gebuehren.abstand.tief",
+                    p=t.zahl(s.abweichung_p, 0)) }}</span>
+        {%- else %}{{ t.t("value.missing") }}{% endif -%}
+      </span>
+    {% endfor %}
+  </div>
+  <p class="gb-hilfe">{{ t.t("gebuehren.schaetzer.hilfe") }}</p>
+
+  {#
+    Der Eimer hinter der Rohzahl. bitcoind sortiert jede beobachtete Transaktion
+    in einen Gebuehreneimer und merkt sich, was aus ihr wurde. Diese vier Zahlen
+    sind die Buchfuehrung des Schaetzers ueber sich selbst - man sieht sie sonst
+    nirgends, und sie erklaeren die ganze Seite: der Schaetzer ist auf eine
+    Erfolgsquote unter 100 % geeicht.
+  #}
+  {% for h in g.leithorizonte %}
+    {% if h.beobachtet %}
+    <div class="gb-eimer">
+      <div class="gb-reihe-kopf">
+        <span class="gb-ziel">{{ t.t("gebuehren.eimer.horizont." ~ h.name) }}</span>
+        <span class="gb-satz">
+          {%- if h.erfolg_p is not none %}{{ t.zahl(h.erfolg_p, 1) }}<em>%</em>
+          {%- else %}{{ t.t("value.missing") }}{% endif -%}
+        </span>
+      </div>
+      <div class="gb-stapel">
+        {% if h.im_ziel_p %}<i class="s1" style="width:{{ "%.2f"|format(h.im_ziel_p) }}%"
+          title="{{ t.t('gebuehren.eimer.im_ziel') }}"></i>{% endif %}
+        {% if h.spaeter_p %}<i class="s2" style="width:{{ "%.2f"|format(h.spaeter_p) }}%"
+          title="{{ t.t('gebuehren.eimer.spaeter') }}"></i>{% endif %}
+        {% if h.wartend_p %}<i class="s3" style="width:{{ "%.2f"|format(h.wartend_p) }}%"
+          title="{{ t.t('gebuehren.eimer.wartend') }}"></i>{% endif %}
+        {% if h.gefallen_p %}<i class="s4" style="width:{{ "%.2f"|format(h.gefallen_p) }}%"
+          title="{{ t.t('gebuehren.eimer.gefallen') }}"></i>{% endif %}
+      </div>
+      <div class="gb-legende klein">
+        <span class="gb-punkt s1"></span>{{ t.t("gebuehren.eimer.im_ziel") }}
+        <span class="gb-punkt s2"></span>{{ t.t("gebuehren.eimer.spaeter") }}
+        <span class="gb-punkt s3"></span>{{ t.t("gebuehren.eimer.wartend") }}
+        <span class="gb-punkt s4"></span>{{ t.t("gebuehren.eimer.gefallen") }}
+      </div>
+      <div class="zeile">
+        <span class="k">{{ t.t("gebuehren.eimer.spanne") }}</span>
+        <span class="w">
+          {%- if h.von_sat_vb is not none and h.bis_sat_vb is not none -%}
+            {{ t.zahl(h.von_sat_vb, 2) }}–{{ t.zahl(h.bis_sat_vb, 2) }} {{ t.t("unit.satvb") }}
+          {%- else %}{{ t.t("value.missing") }}{% endif -%}
+        </span>
+      </div>
+      <div class="zeile">
+        <span class="k">{{ t.t("gebuehren.eimer.beobachtet") }}</span>
+        <span class="w">{{ t.zahl(h.beobachtet, 0) }}</span>
+      </div>
+      <div class="zeile">
+        <span class="k">{{ t.t("gebuehren.eimer.verfall") }}</span>
+        <span class="w">
+          {%- if h.verfall is not none %}{{ t.zahl(h.verfall, 4) }}
+          {%- else %}{{ t.t("value.missing") }}{% endif -%}
+        </span>
+      </div>
+      <p class="gb-hilfe">{{ t.t("gebuehren.eimer.hinweis") }}</p>
+    </div>
+    {% endif %}
+  {% endfor %}
+</section>
+
+<!-- ================================================== Kostenrechner -->
+<section class="gb-kapitel">
+  <h2>{{ t.t("gebuehren.rechner.title") }}</h2>
+
+  <div class="gb-tafel gb-vier">
+    <span class="gb-kopfzelle">{{ t.t("gebuehren.schaetzer.spalte.ziel") }}</span>
+    {% for vb in g.groessen %}
+      <span class="gb-kopfzelle rechts">{{ t.zahl(vb) }} {{ t.t("unit.vbyte") }}
+        <em class="gb-fussnote">{{ t.t("gebuehren.rechner.g" ~ vb) }}</em>
+      </span>
+    {% endfor %}
+    {% for e in g.empfehlungen %}
+      <span class="gb-zelle">{{ t.t("gebuehren.ziel." ~ e.ziel) }}</span>
+      {% for vb in g.groessen %}
+        <span class="gb-zelle rechts zahl">{{ t.zahl(e.kosten[vb], 0) }}</span>
+      {% endfor %}
+    {% endfor %}
+  </div>
+  <p class="gb-hilfe">{{ t.t("gebuehren.rechner.hilfe") }}</p>
+  {% if g.leitziel and g.leitziel.kosten[220] is not none
+        and g.leitziel.kosten_prognose[220] is not none
+        and g.leitziel.kosten[220] > g.leitziel.kosten_prognose[220] %}
+    <p class="gb-hilfe">{{ t.t("gebuehren.rechner.mehr",
+        n=t.zahl(g.leitziel.kosten[220] - g.leitziel.kosten_prognose[220])) }}</p>
+  {% endif %}
+</section>
+
+{% endif %}
+{% endblock %}

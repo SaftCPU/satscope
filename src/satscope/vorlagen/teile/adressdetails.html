@@ -1,0 +1,162 @@
+{# Zweite Schicht der Adressseite: woraus der Saldo besteht.
+
+   Erwartet im Kontext:  t (Texte), ad (adressdetails.details), btc (Formatierer)
+   Fehlt `ad`, faellt der ganze Baustein weg - die Adressseite steht ohne ihn.
+
+   Absichtlich fast ohne Fliesstext: Zahlen, Balken, ein Bild. Jede Zahl, die
+   nicht da ist, wird zum Strich (t.zahl(None)) - geraten wird nirgends. #}
+{% if ad %}
+
+{# --- QR-Code und die vier Kennzahlen nebeneinander --------------------- #}
+<section class="ad-kopf">
+  {% if ad.qr %}
+  <figure class="ad-qr">
+    {# Schwarz auf Weiss, unabhaengig vom Thema: ein umgedrehter QR-Code ist
+       fuer viele Leser unlesbar, und ein Code, den man nicht scannen kann,
+       ist kein Code. Deshalb feste Farben statt var(--tinte). #}
+    <svg viewBox="0 0 {{ ad.qr.gesamt }} {{ ad.qr.gesamt }}"
+         shape-rendering="crispEdges" role="img"
+         aria-label="{{ t.t('address.qr_alt') }}">
+      <rect width="{{ ad.qr.gesamt }}" height="{{ ad.qr.gesamt }}" fill="#fff"/>
+      <path d="{{ ad.qr.pfad }}" fill="#000"/>
+    </svg>
+  </figure>
+  {% endif %}
+
+  <div class="ad-zahlen">
+    <div class="ad-kachel">
+      <span class="ad-wert">{{ t.zahl(ad.anzahl) }}</span>
+      <span class="ad-name">{{ t.t("address.utxo_count") }}</span>
+    </div>
+    <div class="ad-kachel">
+      <span class="ad-wert">{{ t.zahl(ad.kleinster_sat) }}</span>
+      <span class="ad-name">{{ t.t("address.utxo_smallest") }} · {{ t.t("unit.sat") }}</span>
+    </div>
+    <div class="ad-kachel">
+      <span class="ad-wert">{{ t.zahl(ad.median_sat) }}</span>
+      <span class="ad-name">{{ t.t("address.utxo_median") }} · {{ t.t("unit.sat") }}</span>
+    </div>
+    <div class="ad-kachel">
+      <span class="ad-wert">{{ t.zahl(ad.groesster_sat) }}</span>
+      <span class="ad-name">{{ t.t("address.utxo_largest") }} · {{ t.t("unit.sat") }}</span>
+    </div>
+  </div>
+</section>
+
+{% if not ad.da %}
+  {# Genau ein Satz, und er nennt den Grund. Kein erfundener Bestand. #}
+  <p class="hinweis">
+    {%- if ad.grund == "zu_gross" -%}
+      {{ t.t("address.utxo_toobig", n=t.zahl(ad.max_bewegungen)) }}
+    {%- elif ad.grund == "zu_langsam" -%}
+      {{ t.t("address.utxo_slow") }}
+    {%- else -%}
+      {{ t.t("address.utxo_noindex") }}
+    {%- endif -%}
+  </p>
+{% elif ad.anzahl == 0 %}
+  <p class="hinweis">{{ t.t("address.utxo_none") }}</p>
+{% else %}
+
+{# --- Groessenleiter: wo die Ausgaenge in ihrer Groessenordnung liegen --- #}
+{% if ad.klassen %}
+<figure class="ad-leiter" role="img" aria-label="{{ t.t('address.ladder_alt') }}">
+  {% for k in ad.klassen %}
+  <div class="ad-sprosse{{ ' ad-sprosse-staub' if k.staub }}">
+    <span class="ad-marke">{{ k.name }}</span>
+    <span class="ad-balken"><i style="--anteil:{{ (k.anteil * 100)|round(1) }}%"></i></span>
+    <span class="ad-anzahl">{{ t.zahl(k.anzahl) if k.anzahl else "" }}</span>
+  </div>
+  {% endfor %}
+  <figcaption>{{ t.t("address.ladder_caption") }}</figcaption>
+</figure>
+{% endif %}
+
+{# --- Staubgrenze: was auszugeben mehr kostet, als es wert ist ---------- #}
+{% if ad.staub %}
+<section class="ad-staub{{ ' ad-staub-warnung' if ad.staub.jetzt and ad.staub.jetzt.anzahl }}">
+  {% if ad.staub.jetzt and ad.staub.jetzt.anzahl %}
+    <p class="ad-satz">{{ t.t("address.dust_now",
+        n=t.zahl(ad.staub.jetzt.anzahl), sat=t.zahl(ad.staub.jetzt.grenze_sat),
+        rate=t.zahl(ad.staub.jetzt.vb, 1)) }}</p>
+    {% if ad.staub.tag and ad.staub.tag.anzahl < ad.staub.jetzt.anzahl %}
+      <p class="ad-satz ad-neben">{{ t.t("address.dust_day",
+          n=t.zahl(ad.staub.tag.anzahl), rate=t.zahl(ad.staub.tag.vb, 1)) }}</p>
+    {% endif %}
+  {% elif ad.staub.jetzt %}
+    <p class="ad-satz">{{ t.t("address.dust_none", rate=t.zahl(ad.staub.jetzt.vb, 1)) }}</p>
+  {% endif %}
+  <p class="ad-satz ad-neben">{{ t.t("address.dust_input",
+      art=ad.staub.art, vb=t.zahl(ad.staub.eingang_vb)) }}</p>
+</section>
+{% endif %}
+
+{# --- Erstbenutzung, aeltester und juengster Ausgang -------------------- #}
+<section class="zustand ad-zeiten">
+  <div class="zeile">
+    <span class="k">{{ t.t("address.first_use") }}</span>
+    <span class="w">
+      {%- if ad.erst -%}
+        <a href="/block/{{ ad.erst.hoehe }}">{{ t.zahl(ad.erst.hoehe) }}</a>
+        {%- if ad.erst.datum %} <span class="nebensatz">{{ ad.erst.datum }}</span>{% endif -%}
+      {%- elif not ad.erst_bekannt -%}
+        {{ t.zahl(None) }} <span class="nebensatz">{{ t.t("address.first_unsupported") }}</span>
+      {%- else -%}
+        {{ t.zahl(None) }}
+      {%- endif -%}
+    </span>
+  </div>
+  {% if ad.aeltester %}
+  <div class="zeile">
+    <span class="k">{{ t.t("address.utxo_oldest") }}</span>
+    <span class="w">
+      <a href="/block/{{ ad.aeltester.hoehe }}">{{ t.zahl(ad.aeltester.hoehe) }}</a>
+      {%- if ad.aeltester.datum %} <span class="nebensatz">{{ ad.aeltester.datum }}</span>{% endif -%}
+    </span>
+  </div>
+  {% endif %}
+  {% if ad.juengster and ad.juengster.hoehe != ad.aeltester.hoehe %}
+  <div class="zeile">
+    <span class="k">{{ t.t("address.utxo_newest") }}</span>
+    <span class="w">
+      <a href="/block/{{ ad.juengster.hoehe }}">{{ t.zahl(ad.juengster.hoehe) }}</a>
+      {%- if ad.juengster.datum %} <span class="nebensatz">{{ ad.juengster.datum }}</span>{% endif -%}
+    </span>
+  </div>
+  {% endif %}
+  {% if ad.offen_anzahl %}
+  <div class="zeile">
+    <span class="k">{{ t.t("address.utxo_pending") }}</span>
+    <span class="w">{{ t.zahl(ad.offen_anzahl) }}</span>
+  </div>
+  {% endif %}
+</section>
+
+{# --- Die Ausgaenge selbst, gedeckelt ----------------------------------- #}
+<section class="liste ad-liste">
+  {% for e in ad.liste %}
+  <div class="zeile{{ ' ad-ist-staub' if e.staub }}">
+    <span class="k mono">
+      <a href="/tx/{{ e.txid }}">{{ e.txid[:16] }}…</a><span class="ad-vout">:{{ e.n }}</span>
+    </span>
+    <span class="w">
+      {{ btc(e.sat) }} {{ t.t("unit.btc") }}
+      <span class="nebensatz">
+        {%- if e.hoehe -%}
+          {{ t.t("address.confirmed_at", h=t.zahl(e.hoehe)) }}
+          {%- if e.bestaetigungen %} · {{ t.t("address.utxo_age", n=t.zahl(e.bestaetigungen)) }}{% endif -%}
+        {%- else -%}
+          {{ t.t("address.in_mempool") }}
+        {%- endif -%}
+      </span>
+    </span>
+  </div>
+  {% endfor %}
+</section>
+{% if ad.gekuerzt %}
+  <p class="hinweis">{{ t.t("address.utxo_shown",
+      n=t.zahl(ad.grenze), gesamt=t.zahl(ad.anzahl)) }}</p>
+{% endif %}
+
+{% endif %}
+{% endif %}

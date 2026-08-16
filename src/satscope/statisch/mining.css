@@ -1,0 +1,235 @@
+/* Miner und Blockraum - /mining
+   ------------------------------------------------------------------------
+   Eigene Datei statt satscope.css: dort wird parallel gearbeitet. Alle Namen
+   tragen deshalb den Vorsatz "mi-" und koennen mit fremden nicht kollidieren.
+   Eingebunden wird sie aus mining.html heraus (rel="stylesheet" gilt als
+   "body-ok"), damit grundlage.html unangetastet bleibt.
+
+   FARBEN ausschliesslich ueber die Variablen aus satscope.css. Eine feste
+   Farbe waere in genau einem der beiden Themes unlesbar - und die Themes
+   schaltet der Nutzer, nicht der Autor.
+
+   Bewusst nur ZWEI Farben mit Bedeutung:
+     var(--akzent)    die Zahl selbst (Fuellung, Gebuehren, Abstand)
+     var(--schlecht)  ein Zustand, der auffaellt (fast leerer Block,
+                      rueckwaerts laufender Zeitstempel)
+   Die Miner bekommen KEINE eigenen Farben: acht Toene, die sich in beiden
+   Themes und bei Farbsehschwaeche noch unterscheiden, gibt es nicht - und sie
+   waeren auch unnoetig, denn jeder Balken traegt seinen Namen daneben.
+   Beschriftungen tragen nie eine Datenfarbe, immer eine Textfarbe.
+*/
+
+/* ---------------------------------------------------------- Kennzahlen */
+.mi-kacheln{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:16px 0 4px;
+}
+.mi-kachel{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  padding:12px 8px; text-align:center; min-width:0;
+}
+/* Grosse Einzelwerte in gewoehnlichen Ziffern: tabular-nums gibt jeder Ziffer
+   die Breite einer Null, und "121" steht dann sichtbar auseinander. Tabellen
+   und Achsen bekommen es weiter unten - dort richtet es Spalten aus. */
+.mi-kachel b{
+  display:block; font-size:1.32rem; font-weight:800; letter-spacing:-.03em;
+  color:var(--akzent); line-height:1.15;
+}
+.mi-kachel b i{font-style:normal; font-size:.72em; margin-left:1px; font-weight:700}
+.mi-kachel span{
+  display:block; font-size:.63rem; font-weight:600; letter-spacing:.06em;
+  color:var(--gedaempft); text-transform:uppercase; margin-top:4px;
+  text-wrap:balance;
+}
+
+/* ------------------------------------------------------------ Kapitel */
+.mi-kapitel{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  padding:16px 20px 18px; margin-top:14px;
+}
+.mi-kapitel h2, .mi-tabelle summary{
+  font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gedaempft); margin:0 0 10px;
+}
+.mi-satz{margin:10px 0 0; font-size:.86rem; line-height:1.55}
+.mi-fuss, .mi-fehlt{
+  margin:10px 0 0; font-size:.74rem; color:var(--gedaempft); line-height:1.5;
+}
+.mi-warn{color:var(--schlecht)}
+.mi-liste{display:inline-flex; flex-wrap:wrap; gap:8px; margin-left:6px}
+.mi-liste a{color:var(--schlecht); font-size:.78rem;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+/* --------------------------------------------------- Miner-Verteilung */
+.mi-zeile{
+  display:grid; grid-template-columns:minmax(66px,auto) 1fr auto;
+  align-items:center; gap:2px 10px; padding:8px 0;
+  border-top:1px solid var(--linie);
+}
+.mi-zeile:first-child{border-top:none; padding-top:2px}
+.mi-name{font-size:.86rem; font-weight:650; min-width:0; overflow-wrap:anywhere}
+.mi-zeile.unbenannt .mi-name{font-weight:500; color:var(--gedaempft)}
+/* Waagerechter Balken: rundes Datenende, eckig an der Grundlinie links. */
+.mi-spur{display:block; height:9px}
+.mi-spur i{
+  display:block; height:100%; min-width:3px; border-radius:0 4px 4px 0;
+  background:var(--akzent);
+}
+.mi-zeile.unbenannt .mi-spur i{background:var(--gedaempft)}
+.mi-zahl{
+  font-size:.86rem; font-weight:700; font-variant-numeric:tabular-nums;
+  min-width:1.6em; text-align:right;
+}
+.mi-neben{grid-column:1 / -1; font-size:.72rem; color:var(--gedaempft)}
+.mi-neben b{font-weight:600}
+
+/* ---------------------------------------- Saeulenbaender (24 Bloecke) */
+/* Oberkante = Konsensgrenze, Unterkante = Grundlinie. Beide als Haarlinie:
+   ein Raster darf nie lauter sein als die Daten. */
+.mi-band{
+  display:flex; align-items:flex-end; gap:2px; height:104px;
+  border-top:1px solid var(--linie); border-bottom:1px solid var(--linie);
+  padding:0; margin:0;
+}
+.mi-grenze{
+  margin:0 0 4px; text-align:right; font-size:.66rem; color:var(--gedaempft);
+  font-variant-numeric:tabular-nums;
+}
+.mi-saeule{
+  flex:1 1 0; min-width:0; max-width:26px; height:100%;
+  display:flex; align-items:flex-end; text-decoration:none;
+}
+/* Ein ausgefallener Aufruf laesst seine Luecke stehen, statt die Reihe
+   zusammenrutschen zu lassen - sonst waere die Zeitachse still verfaelscht. */
+.mi-saeule.leer{opacity:.25}
+.mi-saeule i, .mi-stapel{
+  display:block; width:100%; min-height:2px; border-radius:4px 4px 0 0;
+  background:var(--akzent);
+}
+.mi-saeule.warn i{background:var(--schlecht)}
+.mi-saeule:hover i, .mi-saeule:focus-visible i,
+.mi-saeule:hover .mi-stapel i, .mi-saeule:focus-visible .mi-stapel i{
+  filter:brightness(1.15) saturate(1.1);
+}
+.mi-saeule:focus-visible{outline:2px solid var(--akzent); outline-offset:2px;
+  border-radius:5px}
+.mi-achse{
+  display:flex; justify-content:space-between; margin-top:6px;
+  font-size:.66rem; color:var(--gedaempft); font-variant-numeric:tabular-nums;
+}
+
+/* Gestapelte Saeule: Gebuehren oben, Belohnung darunter, dazwischen 2 px
+   Flaechenfarbe. Der Streifen der Gebuehren ist heute nur ein bis drei
+   Prozent hoch - genau das ist die Aussage. Die Mindesthoehe haelt ihn
+   sichtbar (sonst waere ein echter Wert unsichtbar), die Prozentzahl im
+   Text daneben bleibt die ungeschoente. */
+.mi-geldband .mi-saeule{align-items:flex-end}
+.mi-stapel{
+  display:flex; flex-direction:column; justify-content:flex-end; gap:2px;
+  background:none;
+}
+.mi-geb{display:block; width:100%; flex:none; min-height:2px;
+  background:var(--akzent); border-radius:4px 4px 0 0}
+.mi-sub{display:block; width:100%; flex:1; border-radius:0;
+  background:color-mix(in srgb, var(--akzent) 30%, transparent)}
+.mi-legende{
+  display:flex; gap:14px; margin:0 0 8px; font-size:.72rem;
+  color:var(--gedaempft);
+}
+.mi-legende span{display:inline-flex; align-items:center; gap:5px}
+.mi-tupfen{width:9px; height:9px; border-radius:3px; display:inline-block}
+.mi-tupfen.geb{background:var(--akzent)}
+.mi-tupfen.sub{background:color-mix(in srgb, var(--akzent) 30%, transparent)}
+
+/* ---------------------------------------------------- Blockabstaende */
+/* Die Nulllinie liegt bei --oben. Ohne Ruecklaeufer ist das 100 % und sie
+   sitzt am Boden; gibt es welche, ruecht sie genau so weit hoch, wie der
+   tiefste von ihnen Platz braucht. So gilt oben wie unten derselbe
+   Massstab - ein Pixel ist ueberall dieselbe Zeit. */
+.mi-takt{
+  --oben:100%;
+  display:flex; gap:2px; height:112px; position:relative; margin-bottom:2px;
+}
+.mi-takt::after{
+  content:""; position:absolute; left:0; right:0; top:var(--oben);
+  border-top:1px solid var(--linie); pointer-events:none;
+}
+.mi-ziel{
+  position:absolute; left:0; right:0; border-top:1px solid var(--linie);
+  pointer-events:none;
+}
+.mi-ziel b{
+  position:absolute; right:0; top:-1.05rem; font-size:.62rem; font-weight:600;
+  color:var(--gedaempft); background:var(--flaeche); padding:0 3px;
+}
+.mi-taktsaeule{
+  flex:1 1 0; min-width:0; max-width:26px; display:flex; flex-direction:column;
+  text-decoration:none;
+}
+.mi-oben{height:var(--oben); display:flex; align-items:flex-end}
+.mi-unten{flex:1; display:flex; align-items:flex-start}
+.mi-oben i{display:block; width:100%; min-height:2px; background:var(--akzent);
+  border-radius:4px 4px 0 0}
+.mi-unten i{display:block; width:100%; min-height:2px;
+  background:var(--schlecht); border-radius:0 0 4px 4px}
+.mi-taktsaeule:hover i{filter:brightness(1.15) saturate(1.1)}
+.mi-taktsaeule:focus-visible{outline:2px solid var(--akzent); outline-offset:2px;
+  border-radius:5px}
+.mi-takt-werte{
+  display:flex; justify-content:space-between; gap:10px; margin-top:8px;
+}
+.mi-takt-werte span{text-align:center; flex:1}
+.mi-takt-werte b{
+  display:block; font-size:.95rem; font-weight:700; color:var(--tinte);
+  font-variant-numeric:tabular-nums;
+}
+.mi-takt-werte i{
+  font-style:normal; font-size:.63rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--gedaempft);
+}
+
+/* ------------------------------------------------------------ Tabelle */
+/* Die vollstaendige Textfassung aller vier Bilder. <details> statt eines
+   eigenen Menues: aufklappbar ohne eine Zeile JavaScript, mit Tastatur
+   bedienbar und vom Browser selbst korrekt an Vorleseprogramme gemeldet. */
+.mi-tabelle summary{cursor:pointer; margin:0}
+.mi-tabelle[open] summary{margin-bottom:10px}
+.mi-rollen{overflow-x:auto}
+.mi-tabelle table{border-collapse:collapse; width:100%; font-size:.76rem}
+.mi-tabelle th, .mi-tabelle td{
+  padding:5px 7px; border-bottom:1px solid var(--linie); text-align:left;
+  white-space:nowrap;
+}
+.mi-tabelle th{
+  font-size:.63rem; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--gedaempft); font-weight:600;
+}
+.mi-tabelle td.r, .mi-tabelle th.r{
+  text-align:right; font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+}
+.mi-tabelle td a{color:var(--akzent); text-decoration:none;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.mi-marke{max-width:12rem; overflow:hidden; text-overflow:ellipsis}
+/* Fremdtext aus der Coinbase: klein, gedaempft und als Zitat erkennbar - er
+   ist eine Behauptung des Miners, keine Auskunft der App. */
+.mi-roh{color:var(--gedaempft); font-size:.72rem;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+/* ------------------------------------------------------------- Enge */
+@media (max-width:420px){
+  .mi-kacheln{grid-template-columns:repeat(2,1fr)}
+  .mi-band, .mi-takt{height:84px}
+  .mi-kapitel{padding:14px 12px 16px}
+  .mi-zeile{grid-template-columns:minmax(58px,auto) 1fr auto}
+}
+
+@media (prefers-reduced-motion: no-preference){
+  .mi-saeule i, .mi-stapel, .mi-oben i, .mi-unten i{
+    animation:mi-wachsen .5s cubic-bezier(.2,.7,.3,1) both;
+  }
+  .mi-spur i{animation:mi-breit .5s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes mi-wachsen{from{transform:scaleY(0)} to{transform:scaleY(1)}}
+  @keyframes mi-breit{from{width:0}}
+}
+.mi-saeule i, .mi-stapel, .mi-oben i{transform-origin:bottom}
+.mi-unten i{transform-origin:top}

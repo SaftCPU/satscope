@@ -11,8 +11,9 @@ ein unbedachter Handler waere ein Denial-of-Service gegen den eigenen Node.
 import asyncio
 import os
 
-from . import (adresse, blockseite, elektrum, kette, knoten, knotenseite,
-               lage, spiel, tiefenkarte, txseite)
+from . import (adresse, adressdetails, blockliste, blockseite, elektrum,
+               gebuehren, kette, knoten, knotenseite, lage, mempoolseite,
+               mining, spiel, suchen, tiefenkarte, txseite, xpub)
 from .rpc import BILLIG, Tor
 from .sprache import COOKIE, COOKIE_ALTER, SPRACHEN, Texte, sprache_aus_cookies
 
@@ -91,21 +92,31 @@ def erzeuge_app():
             # Kein erfundener Saldo, wenn der Index nicht antwortet.
             u = {"bestaetigt_sat": None, "offen_sat": 0, "anzahl": 0,
                  "anzahl_offen": 0, "zu_gross": False, "verlauf": []}
+        # Offene Ausgaenge, Erstbenutzung, QR-Code und Staubgrenze. Bekommt die
+        # bereits geholten Bewegungen mit, damit Fulcrum nicht zweimal dieselbe
+        # Historie liefern muss.
+        # bewegungen ist die ANZAHL, nicht die Liste - damit das Modul weiss,
+        # ob es die offenen Ausgaenge ueberhaupt auflisten soll.
+        ad = await adressdetails.details(TOR, kennung, wert, art,
+                                         u.get("anzahl") if u else None)
         return vorlagen.TemplateResponse(request, "adresse.html", {
             "t": t, "pfad": request.url.path, "adresse": wert, "art": art,
-            "kurz": wert[:12] + "\u2026", "u": u,
+            "kurz": wert[:12] + "\u2026", "u": u, "ad": ad,
             "btc": lambda s: _btc_lokal(s, t),
         })
 
     async def suche(request):
         """Eine Eingabezeile fuer alles - der Nutzer soll nicht wissen muessen,
-        was er da eigentlich eingibt."""
+        was er da eigentlich eingibt.
+
+        Erkennt Blockhoehe, Blockhash, Txid, Adresse und xpub. Vorher konnte sie
+        NUR Adressen; wer eine Txid eingab, bekam "nicht erkannt" - die
+        auffaelligste Luecke im ganzen Projekt.
+        """
         wert = (request.query_params.get("q") or "").strip()
-        try:
-            adresse.scripthash(wert)
-            return RedirectResponse("/address/" + wert, status_code=303)
-        except adresse.UnbekannteAdresse:
-            pass
+        art, ziel = await suchen.einordnen(TOR, wert)
+        if ziel:
+            return RedirectResponse(ziel, status_code=303)
         t = Texte(sprache_aus_cookies(request.cookies))
         return vorlagen.TemplateResponse(request, "start.html", {
             "t": t, "z": await knoten.zustand(TOR), "pfad": "/",
@@ -148,6 +159,49 @@ def erzeuge_app():
             "spanne": lambda s: txseite.spanne(s, t),
         }, status_code=200 if (d and d.get("gefunden")) else 404)
 
+    async def blockliste_(request):
+        t = Texte(sprache_aus_cookies(request.cookies))
+        vor = blockliste.vor_aus_parameter(request.query_params.get("vor"))
+        return vorlagen.TemplateResponse(request, "blocks.html", {
+            "t": t, "pfad": request.url.path,
+            "bl": await blockliste.liste(TOR, vor),
+            "dauer": lambda s: _dauer_text(s, t.sprache),
+        })
+
+    async def mempoolseite_(request):
+        t = Texte(sprache_aus_cookies(request.cookies))
+        m = await mempoolseite.seite(TOR)
+        return vorlagen.TemplateResponse(request, "mempool.html", {
+            "t": t, "pfad": request.url.path, "m": m,
+            "s": await spiel.fuer_seite(TOR, t),
+        })
+
+    async def gebuehrenseite_(request):
+        t = Texte(sprache_aus_cookies(request.cookies))
+        return vorlagen.TemplateResponse(request, "gebuehren.html", {
+            "t": t, "pfad": request.url.path, "g": await gebuehren.seite(TOR),
+        })
+
+    async def miningseite_(request):
+        t = Texte(sprache_aus_cookies(request.cookies))
+        m = await mining.uebersicht(TOR, t.sprache)
+        return vorlagen.TemplateResponse(request, "mining.html", {
+            "t": t, "pfad": request.url.path, "m": m, "h": m,
+        })
+
+    async def xpubseite_(request):
+        t = Texte(sprache_aus_cookies(request.cookies))
+        # Ein erweiterter oeffentlicher Schluessel beschreibt eine ganze Wallet.
+        # Er wird NICHT protokolliert und verlaesst den Knoten nie - das ist der
+        # ganze Grund, warum es diese Ansicht nur beim Selberhosten geben darf.
+        # xpub.uebersicht braucht kein RPC-Tor: sie leitet die Adressen
+        # selbst ab und holt die Salden ueber den Electrum-Server.
+        x = await xpub.uebersicht(request.path_params["schluessel"], t.sprache)
+        return vorlagen.TemplateResponse(
+            request, "xpub.html",
+            {"t": t, "pfad": request.url.path, "x": x},
+            status_code=200 if (x and x.get("gefunden")) else 404)
+
     async def sprache_setzen(request):
         wahl = request.path_params["sprache"]
         ziel = request.query_params.get("weiter", "/")
@@ -168,6 +222,11 @@ def erzeuge_app():
         Route("/block/{kennung}", blockseite_),
         Route("/tx/{txid}", txseite_),
         Route("/api/kette", kette.handler(TOR)),
+        Route("/blocks", blockliste_),
+        Route("/mempool", mempoolseite_),
+        Route("/gebuehren", gebuehrenseite_),
+        Route("/mining", miningseite_),
+        Route("/xpub/{schluessel}", xpubseite_),
         Route("/sprache/{sprache}", sprache_setzen),
         Mount("/statisch", StaticFiles(directory=os.path.join(HIER, "statisch")),
               name="statisch"),

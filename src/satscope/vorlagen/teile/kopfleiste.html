@@ -140,6 +140,25 @@
   </div>
 </header>
 
+{# Navigation. Ohne sie waeren alle Unterseiten nur ueber die Adresszeile
+   erreichbar - und genau das war frueher der Grund, alles auf die Startseite
+   zu packen. Der aktuelle Pfad wird hervorgehoben, damit man weiss, wo man ist.
+   Bewusst eine eigene Zeile unter dem Kopf: auf dem Handy passen sechs
+   Menuepunkte NICHT neben Marke und Suchfeld. #}
+<nav class="hauptnav" aria-label="{{ t.t('nav.label') }}">
+  {% set hier = pfad|default('/') %}
+  {% for ziel, schluessel in [
+        ("/",          "nav.home"),
+        ("/blocks",    "nav.blocks"),
+        ("/mempool",   "nav.mempool"),
+        ("/gebuehren", "nav.fees"),
+        ("/mining",    "nav.mining"),
+        ("/node",      "nav.node")] %}
+    {% set aktiv = (hier == ziel) or (ziel != "/" and hier.startswith(ziel)) %}
+    <a href="{{ ziel }}"{% if aktiv %} class="hier" aria-current="page"{% endif %}>{{ t.t(schluessel) }}</a>
+  {% endfor %}
+</nav>
+
 {#
   Textvorrat fuer feinschliff.js. Das JavaScript darf keine eigenen Saetze
   fuehren - sonst gaebe es einen zweiten, unuebersetzten Textkatalog, der beim

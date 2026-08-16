@@ -1,0 +1,114 @@
+/* --- Mempool-Seite (/mempool) --------------------------------------------
+   Alle Klassen tragen den Vorsatz "mp-", damit sie sich mit nichts beissen:
+   satscope.css und feinschliff.css gehoeren anderen Bausteinen, an denen
+   gleichzeitig gearbeitet wird.
+
+   Farben AUSSCHLIESSLICH ueber die Themenvariablen aus satscope.css. Einzige
+   Ausnahme sind die Gebuehrenfarben der Bloecke - die kommen als fertiger
+   Hexwert aus mempoolseite._farbe() und sind dieselbe Skala wie die
+   Tiefenkarte, damit man sie nur einmal lernen muss.
+   ------------------------------------------------------------------------ */
+
+.mp-unterzeile{color:var(--gedaempft); font-size:.88rem; margin:0 0 20px}
+.mp-abschnitt{background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:16px 22px 18px; margin-bottom:16px}
+.mp-titel{font-size:.72rem; font-weight:700; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--gedaempft); margin:0 0 12px}
+.mp-fussnote{font-size:.76rem; color:var(--gedaempft); margin:10px 0 0}
+.mp-warnung{border:1px solid var(--schlecht); border-left-width:4px;
+  border-radius:10px; padding:10px 16px; margin-bottom:16px;
+  background:var(--flaeche)}
+.mp-warnung p{margin:0; font-size:.84rem}
+.mp-warnung p + p{margin-top:4px; color:var(--gedaempft); font-size:.78rem}
+
+/* --- Kennzahlen: drei Kacheln nebeneinander ---
+   Die Zahl ist das Element, die Beschriftung nur ihr Name. */
+.mp-kacheln{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+  margin-bottom:16px}
+.mp-kachel{background:var(--flaeche); border:1px solid var(--linie);
+  border-radius:12px; padding:12px 14px; min-width:0}
+.mp-kachel .k{display:block; font-size:.72rem; color:var(--gedaempft);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mp-gross{display:block; font-size:1.5rem; font-weight:800; letter-spacing:-.03em;
+  line-height:1.15; color:var(--akzent); font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.mp-einheit{font-size:.7rem; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--gedaempft); font-family:inherit}
+@media (max-width:420px){
+  .mp-gross{font-size:1.2rem}
+  .mp-kachel{padding:10px}
+}
+
+/* --- Fuellstand: eine Strecke, die Belegung darin -----------------------
+   Die Farbe wechselt erst spaet: unter 80 % ist ein voller Mempool voellig
+   normal, und ein dauerrotes Band lernt man zu uebersehen. */
+.mp-schiene{height:16px; border-radius:8px; background:var(--linie);
+  overflow:hidden; margin:8px 0 6px; position:relative}
+.mp-fuellung{height:100%; border-radius:8px; background:var(--akzent);
+  transform-origin:left center}
+.mp-fuellung.halb{background:var(--akzent)}
+.mp-fuellung.eng{background:color-mix(in srgb, var(--schlecht) 55%, var(--akzent))}
+.mp-fuellung.voll{background:var(--schlecht)}
+.mp-beschriftung{display:flex; justify-content:space-between; gap:12px;
+  font-size:.76rem; color:var(--gedaempft);
+  font-variant-numeric:tabular-nums}
+
+/* --- Aufnahmeschwelle: zwei Zahlen, die dieselbe Frage beantworten ------ */
+.mp-schwelle{display:flex; flex-wrap:wrap; gap:10px; align-items:stretch}
+.mp-schwelle > div{flex:1 1 150px; border:1px solid var(--linie);
+  border-radius:10px; padding:10px 14px; background:var(--grund); min-width:0}
+.mp-schwelle .mp-gross{font-size:1.7rem}
+.mp-abstand{display:inline-block; font-size:.7rem; margin-left:6px;
+  padding:1px 7px; border-radius:20px; border:1px solid var(--linie);
+  color:var(--gedaempft); vertical-align:middle; white-space:nowrap}
+
+/* --- Die naechsten Bloecke ---------------------------------------------
+   Eine Reihe von Quadern. Jeder ist ein kuenftiger Block; seine Fuellung ist
+   der Platz, den die Warteschlange darin schon belegt, und die Streifen darin
+   sind die Gebuehrenstufen in EINBAUREIHENFOLGE - teuerste oben. Auf schmalen
+   Geraeten scrollt die Reihe waagerecht, statt zu Streichhoelzern zu werden. */
+.mp-reihe{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;
+  scrollbar-width:thin}
+.mp-block{flex:0 0 96px; text-align:center}
+.mp-quader{height:104px; display:flex; flex-direction:column;
+  justify-content:flex-end; border:1px solid var(--linie); border-radius:10px;
+  background:var(--grund); overflow:hidden}
+.mp-stapel{display:flex; flex-direction:column; width:100%}
+/* flex-grow statt Prozenthoehen: der Browser teilt exakt auf, und es bleibt
+   keine Rundungsluecke am Ende. min-height haelt eine winzige Stufe sichtbar -
+   dass sie da ist, ist die Aussage. */
+.mp-stapel i{display:block; min-height:2px; flex-basis:0}
+.mp-medianzahl{font-size:1.05rem; font-weight:750; margin-top:7px;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.mp-spanne{font-size:.7rem; color:var(--gedaempft);
+  font-variant-numeric:tabular-nums}
+.mp-eta{font-size:.68rem; color:var(--gedaempft); margin-top:2px}
+/* Der Rest der Warteschlange: bewusst kein Quader, sondern ein Schild -
+   diese Bloecke sind keine Aussicht mehr, sondern eine Menge. */
+.mp-rest{flex:0 0 128px; display:flex; align-items:center; text-align:left;
+  border:1px dashed var(--linie); border-radius:10px; padding:10px 12px;
+  font-size:.76rem; color:var(--gedaempft); line-height:1.4}
+.mp-leer{font-size:.86rem; color:var(--gedaempft); margin:0}
+
+/* --- Schaetzungen: vier Balken, waagerecht ------------------------------ */
+.mp-ziele{display:flex; flex-direction:column; gap:7px; margin-top:4px}
+.mp-ziel{display:grid; grid-template-columns:5.5rem 1fr 4.2rem;
+  align-items:center; gap:10px; font-size:.78rem}
+.mp-ziel .k{color:var(--gedaempft); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis}
+.mp-ziel .w{text-align:right; font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; color:var(--tinte)}
+.mp-balken{height:9px; border-radius:5px; background:var(--linie);
+  overflow:hidden}
+.mp-balken i{display:block; height:100%; border-radius:5px;
+  background:var(--akzent); transform-origin:left center}
+
+/* --- Bewegung nur, wenn sie gewuenscht ist ----------------------------- */
+@media (prefers-reduced-motion: no-preference){
+  .mp-fuellung, .mp-balken i{animation:mp-breit .6s cubic-bezier(.2,.7,.3,1) both}
+  .mp-stapel{animation:mp-hoch .5s cubic-bezier(.2,.8,.3,1) backwards;
+    transform-origin:center bottom; animation-delay:var(--verzug,0ms)}
+  @keyframes mp-breit{from{transform:scaleX(0)}}
+  @keyframes mp-hoch{from{transform:scaleY(0); opacity:.2}}
+}

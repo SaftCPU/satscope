@@ -1,0 +1,278 @@
+{% extends "grundlage.html" %}
+{% block titel %}{{ t.t("mining.title") }} · {{ t.t("app.name") }}{% endblock %}
+
+{#
+  Miner und Blockraum. Erwarteter Zusammenhang:
+      t      Texte-Objekt
+      pfad   aktueller Pfad (fuer die Sprachumschaltung in der Kopfleiste)
+      m      mining.uebersicht(...) - enthaelt auch m.btc(sat)
+
+  Vier Bilder, kein Fliesstext: wer gebaut hat, wie voll, was verdient, in
+  welchem Takt. Jede Zahl steht dort, wo sie hingehoert - Beschriftungen ja,
+  Erklaerabsaetze nein.
+
+  Jeder Balken ist ein Link auf seinen Block. Das ist nicht Zierde, sondern die
+  Barrierefreiheit dieser Seite: die Saeulen sind so mit der Tastatur
+  erreichbar, und ihr title nennt die Zahl, die das Bild nur zeigt. Wer lieber
+  liest, klappt unten die Tabelle auf - sie ist die vollstaendige Textfassung
+  aller vier Bilder.
+#}
+{% block inhalt %}
+{# Ein Stylesheet im Body ist erlaubt (rel="stylesheet" gilt als "body-ok") -
+   genau wie in teile/blockkette.html. So bleibt die Seite in sich geschlossen
+   und grundlage.html muss nichts von ihr wissen; dort wird parallel
+   gearbeitet. Wer es lieber im Kopf haette, verschiebt diese Zeile dorthin. #}
+<link rel="stylesheet" href="/statisch/mining.css">
+
+{% include "suche.html" %}
+
+<h1 class="objekt">{{ t.t("mining.title") }}</h1>
+
+{% if not m.erreichbar %}
+  <p class="hinweis">{{ t.t("mining.knoten_weg") }}</p>
+{% else %}
+
+<p class="kennung">
+  {{- t.t("mining.fenster", n=t.zahl(m.blockzahl),
+          std=t.zahl(m.fenster_stunden, 1) if m.fenster_stunden is not none else "–") -}}
+</p>
+
+<!-- ------------------------------------------------ Die vier Kennzahlen -->
+<div class="mi-kacheln">
+  <div class="mi-kachel">
+    <b>{{ t.zahl(m.fuellung_mittel, 0) if m.fuellung_mittel is not none else t.t("value.missing") }}{% if m.fuellung_mittel is not none %}<i>%</i>{% endif %}</b>
+    <span>{{ t.t("mining.kachel.fuellung") }}</span>
+  </div>
+  <div class="mi-kachel">
+    <b>
+      {%- if m.abstand_median is not none -%}
+        {{ t.zahl(m.abstand_median / 60.0, 1) }}<i>{{ t.t("mining.einheit.min_kurz") }}</i>
+      {%- else -%}{{ t.t("value.missing") }}{% endif -%}
+    </b>
+    <span>{{ t.t("mining.kachel.takt") }}</span>
+  </div>
+  <div class="mi-kachel">
+    <b>{{ t.zahl(m.gebuehren_anteil, 1) if m.gebuehren_anteil is not none else t.t("value.missing") }}{% if m.gebuehren_anteil is not none %}<i>%</i>{% endif %}</b>
+    <span>{{ t.t("mining.kachel.gebuehren") }}</span>
+  </div>
+  <div class="mi-kachel">
+    <b>{{ t.zahl(m.bis_halbierung) if m.bis_halbierung is not none else t.t("value.missing") }}</b>
+    <span>{{ t.t("mining.kachel.halbierung") }}</span>
+  </div>
+</div>
+
+<!-- ------------------------------------------------ Wer sie gebaut hat -->
+<section class="mi-kapitel">
+  <h2>{{ t.t("mining.kapitel.miner") }}</h2>
+
+  {% if not m.miner %}
+    {# Ohne den Electrum-Index ist die Coinbase nicht zu lesen. Dann fehlt
+       genau dieses Kapitel - und nicht die Seite. #}
+    <p class="mi-fehlt">{{ t.t("mining.miner.kein_index") }}</p>
+  {% else %}
+    <div class="mi-miner">
+      {% for g in m.miner %}
+      <div class="mi-zeile{{ ' unbenannt' if not g.erkannt }}">
+        <span class="mi-name">{{ g.name if g.erkannt else t.t("mining.miner.unbekannt") }}</span>
+        <span class="mi-spur"><i style="width:{{ "%.1f"|format(g.balken) }}%"></i></span>
+        <span class="mi-zahl">{{ t.zahl(g.anzahl) }}</span>
+        <span class="mi-neben">
+          {%- if g.fuellung_mittel is not none -%}
+            {{ t.t("mining.miner.fuellung", p=t.zahl(g.fuellung_mittel, 0)) }}
+          {%- endif -%}
+          {%- if g.leer %} · <b class="mi-warn">{{ t.t("mining.miner.leer", n=t.zahl(g.leer)) }}</b>{% endif -%}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="mi-fuss">{{ t.t("mining.miner.quelle") }}</p>
+  {% endif %}
+</section>
+
+<!-- ------------------------------------------------ Wie voll sie waren -->
+<section class="mi-kapitel">
+  <h2>{{ t.t("mining.kapitel.blockraum") }}</h2>
+
+  {# Der Massstab ist die Konsensgrenze, nicht der vollste Block des Fensters:
+     sonst saehe ein Fenster aus lauter halbvollen Bloecken aus wie eines aus
+     lauter vollen. Die Oberkante des Rahmens IST die Grenze. #}
+  <p class="mi-grenze">{{ t.zahl(4000000) }} {{ t.t("unit.wu") }}</p>
+  <div class="mi-band" role="group"
+       aria-label="{{ t.t('mining.raum.alt', n=t.zahl(m.blockzahl)) }}">
+    {% for b in m.bloecke %}
+      {% if b.fuellung_saeule is none %}
+        <span class="mi-saeule leer"></span>
+      {% else %}
+        <a class="mi-saeule{{ ' warn' if b.auffaellig }}" href="/block/{{ b.hoehe }}"
+           title="{{ t.t('mining.raum.titel', h=t.zahl(b.hoehe),
+                         p=t.zahl(b.fuellung, 1), n=t.zahl(b.txs)) }}">
+          <i style="height:{{ "%.1f"|format(b.fuellung_saeule) }}%"></i>
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="mi-achse">
+    <span>{{ t.t("mining.achse.alt") }} {{ t.zahl(m.von_hoehe) if m.von_hoehe is not none }}</span>
+    <span>{{ t.zahl(m.bis_hoehe) if m.bis_hoehe is not none }} {{ t.t("mining.achse.neu") }}</span>
+  </div>
+
+  {% if m.auffaellige %}
+  <p class="mi-satz mi-warn">
+    {%- if m.auffaellige|length == 1 %}{{ t.t("mining.raum.auffaellig_1", min=t.zahl(m.grenze_auffaellig)) }}
+    {%- else %}{{ t.t("mining.raum.auffaellig", n=t.zahl(m.auffaellige|length), min=t.zahl(m.grenze_auffaellig)) }}{% endif -%}
+    <span class="mi-liste">
+      {%- for h in m.auffaellige %}<a href="/block/{{ h }}">{{ t.zahl(h) }}</a>{% endfor -%}
+    </span>
+  </p>
+  {% endif %}
+  {% if m.randvoll %}
+  <p class="mi-satz">{{ t.t("mining.raum.voll", n=t.zahl(m.randvoll)) }}</p>
+  {% endif %}
+</section>
+
+<!-- ------------------------------------------------ Belohnung gegen Gebuehren -->
+<section class="mi-kapitel">
+  <h2>{{ t.t("mining.kapitel.geld") }}</h2>
+
+  <div class="mi-legende">
+    <span><i class="mi-tupfen geb"></i>{{ t.t("mining.geld.gebuehren") }}</span>
+    <span><i class="mi-tupfen sub"></i>{{ t.t("mining.geld.belohnung") }}</span>
+  </div>
+  <div class="mi-band mi-geldband" role="group"
+       aria-label="{{ t.t('mining.geld.alt', n=t.zahl(m.blockzahl)) }}">
+    {% for b in m.bloecke %}
+      {% if b.lohn_saeule is none %}
+        <span class="mi-saeule leer"></span>
+      {% else %}
+        <a class="mi-saeule" href="/block/{{ b.hoehe }}"
+           title="{{ t.t('mining.geld.titel', h=t.zahl(b.hoehe),
+                         geb=m.btc(b.gebuehren_sat), sub=m.btc(b.subsidy_sat)) }}">
+          <span class="mi-stapel" style="height:{{ "%.1f"|format(b.lohn_saeule) }}%">
+            <i class="mi-geb" style="height:{{ "%.1f"|format(b.gebuehren_saeule or 0) }}%"></i>
+            <i class="mi-sub"></i>
+          </span>
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  {% if m.subsidy_sat is not none %}
+  <p class="mi-satz">{{ t.t("mining.geld.summe", sub=m.btc(m.subsidy_sat),
+                            geb=m.btc(m.gebuehren_sat)) }}</p>
+  {% endif %}
+  {% if m.gebuehren_anteil is not none %}
+  <p class="mi-satz">{{ t.t("mining.geld.anteil", p=t.zahl(m.gebuehren_anteil, 1)) }}</p>
+  {% endif %}
+  {% if m.anteil_nach_halbierung is not none and m.bis_halbierung %}
+  <p class="mi-satz">{{ t.t("mining.geld.halbierung", h=t.zahl(m.halbierung),
+      n=t.zahl(m.bis_halbierung), tage=t.zahl(m.tage_halbierung, 0),
+      p=t.zahl(m.anteil_nach_halbierung, 1)) }}</p>
+  {% endif %}
+</section>
+
+<!-- ------------------------------------------------ Abstand zwischen den Bloecken -->
+<section class="mi-kapitel">
+  <h2>{{ t.t("mining.kapitel.takt") }}</h2>
+
+  {# Die Nulllinie liegt nicht fest am Boden: sie ruecht genau so weit hoch,
+     wie der tiefste Ruecklauf Platz braucht. Dadurch gilt oben wie unten
+     derselbe Massstab - ein Pixel ist ueberall dieselbe Zeit. #}
+  {# role="group" und NICHT role="img": ein Bild versteckt seinen Inhalt vor
+     Vorleseprogrammen - die 24 Links waeren dann unsichtbar angesagt, aber
+     weiterhin mit der Tabulatortaste erreichbar. Das ist schlimmer als keine
+     Beschriftung. Die Gruppe traegt den Satz, die Links tragen ihre Zahlen. #}
+  <div class="mi-takt" style="--oben:{{ "%.1f"|format(m.takt_oben or 100) }}%"
+       role="group" aria-label="{{ t.t('mining.takt.alt') }}">
+    {# Die Zehn-Minuten-Marke. Die Nulllinie liegt (100% - oben) ueber dem
+       Boden, die Marke noch einmal ziel_marke Prozent der oberen Haelfte
+       darueber - zusammengefasst: 100% - oben * (1 - Anteil). Erreicht kein
+       einziger Abstand die zehn Minuten, faellt sie weg statt am Rand zu
+       kleben. #}
+    {% if m.ziel_marke %}
+      <span class="mi-ziel" style="bottom:calc(100% - var(--oben) * {{ "%.4f"|format(1.0 - m.ziel_marke / 100.0) }})">
+        <b>{{ t.t("mining.takt.ziel") }}</b>
+      </span>
+    {% endif %}
+    {% for b in m.bloecke %}
+      {% if b.abstand_saeule is none %}
+        <span class="mi-taktsaeule"><span class="mi-oben"></span><span class="mi-unten"></span></span>
+      {% else %}
+        {# Kein eigenes Warn-Kennzeichen noetig: nach UNTEN zeigt nur ein
+           Ruecklauf, und die Saeule dort traegt die Warnfarbe schon. #}
+        <a class="mi-taktsaeule" href="/block/{{ b.hoehe }}"
+           title="{{ t.t('mining.takt.titel_rueck' if b.rueckwaerts else 'mining.takt.titel',
+                         h=t.zahl(b.hoehe), min=t.zahl(b.abstand_minuten, 1)) }}">
+          <span class="mi-oben">
+            {%- if not b.rueckwaerts %}<i style="height:{{ "%.1f"|format(b.abstand_saeule) }}%"></i>{% endif -%}
+          </span>
+          <span class="mi-unten">
+            {%- if b.rueckwaerts %}<i style="height:{{ "%.1f"|format(b.abstand_saeule) }}%"></i>{% endif -%}
+          </span>
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="mi-takt-werte">
+    <span><b>{{ t.t("mining.einheit.min", n=t.zahl(m.abstand_min / 60.0, 1)) if m.abstand_min is not none else t.t("value.missing") }}</b>
+      <i>{{ t.t("mining.takt.kuerzester") }}</i></span>
+    <span><b>{{ t.t("mining.einheit.min", n=t.zahl(m.abstand_median / 60.0, 1)) if m.abstand_median is not none else t.t("value.missing") }}</b>
+      <i>{{ t.t("mining.takt.median") }}</i></span>
+    <span><b>{{ t.t("mining.einheit.min", n=t.zahl(m.abstand_max / 60.0, 1)) if m.abstand_max is not none else t.t("value.missing") }}</b>
+      <i>{{ t.t("mining.takt.laengster") }}</i></span>
+  </div>
+
+  {% if m.rueckwaerts %}
+  <p class="mi-satz mi-warn">
+    {%- if m.rueckwaerts == 1 %}{{ t.t("mining.takt.rueckwaerts_1") }}
+    {%- else %}{{ t.t("mining.takt.rueckwaerts", n=t.zahl(m.rueckwaerts)) }}{% endif -%}
+  </p>
+  {% endif %}
+</section>
+
+<!-- ------------------------------------------------ Die Tabelle zu allen Bildern -->
+<details class="mi-kapitel mi-tabelle">
+  <summary>{{ t.t("mining.kapitel.tabelle") }}</summary>
+  <div class="mi-rollen">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t.t("mining.feld.hoehe") }}</th>
+          <th>{{ t.t("mining.feld.miner") }}</th>
+          <th class="r">{{ t.t("mining.feld.fuellung") }}</th>
+          <th class="r">{{ t.t("mining.feld.txs") }}</th>
+          <th class="r">{{ t.t("mining.feld.gebuehren") }}</th>
+          <th class="r">{{ t.t("mining.feld.abstand") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# Neueste zuerst: wer eine Tabelle aufklappt, sucht den letzten Block. #}
+        {% for b in m.bloecke|reverse %}
+        {# Auffaellig markiert wird die ZELLE, nicht die Zeile: sonst stuende
+           auch die Blockhoehe in Warnfarbe, und der Block selbst ist ja in
+           Ordnung - auffaellig ist genau eine seiner Zahlen. #}
+        <tr>
+          <td><a href="/block/{{ b.hoehe }}">{{ t.zahl(b.hoehe) }}</a></td>
+          {# Der Rohtext steht hier und nur hier: in der Verteilung oben waere
+             er Rauschen, hier ist er der Beleg fuer den Namen daneben. #}
+          <td class="mi-marke">
+            {%- if b.miner and b.miner.erkannt %}{{ b.miner.name }}
+            {%- elif b.miner and b.miner.text %}<span class="mi-roh">{{ b.miner.text }}</span>
+            {%- else %}{{ t.t("value.missing") }}{% endif -%}
+          </td>
+          <td class="r{{ ' mi-warn' if b.auffaellig }}">{{ (t.zahl(b.fuellung, 1) ~ "%") if b.fuellung is not none else t.t("value.missing") }}</td>
+          <td class="r{{ ' mi-warn' if b.auffaellig }}">{{ t.zahl(b.txs) if b.txs is not none else t.t("value.missing") }}</td>
+          <td class="r">{{ m.btc(b.gebuehren_sat) if b.gebuehren_sat is not none else t.t("value.missing") }}</td>
+          <td class="r{{ ' mi-warn' if b.rueckwaerts }}">
+            {%- if b.abstand is none %}{{ t.t("value.missing") }}
+            {%- else %}{{ "−" if b.rueckwaerts }}{{ t.t("mining.einheit.min", n=t.zahl(b.abstand_minuten, 1)) }}{% endif -%}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+
+{% endif %}
+{% endblock %}
