@@ -60,22 +60,13 @@ def erzeuge_app():
         t = Texte(sprache_aus_cookies(request.cookies))
         # Beide Quellen nebenlaeufig: der Knoten ueber RPC, das Histogramm
         # ueber Electrum. Zusammen gemessen unter 60 ms.
-        z, hist = await asyncio.gather(knoten.zustand(TOR),
-                                       tiefenkarte.histogramm())
-        # Die spielerischen Kennzahlen bekommen den bereits erhobenen Zustand
-        # mit, statt ihn ein zweites Mal zu holen - sonst zahlt der Knoten
-        # jeden Wert doppelt. fuer_seite ist asynchron und macht die Erhebung
-        # selbst; ein zusaetzliches erhebe() waere genau die Doppelabfrage.
-        s = await spiel.fuer_seite(TOR, t, z)
-        satz, art = lage.lage(z, t)
+        # Die Startseite zeigt nur noch Suche, Blockkette und Gebuehren. Sie
+        # braucht deshalb weder den vollen Knotenzustand noch die Tiefenkarte -
+        # das spart bei jedem Aufruf mehrere RPC-Runden.
+        s = await spiel.fuer_seite(TOR, t)
         return vorlagen.TemplateResponse(request, "start.html", {
             "t": t,
-            "z": z,
             "pfad": request.url.path,
-            "dauer": lambda s: _dauer_text(s, t.sprache),
-            "satz": satz,
-            "lage_art": art,
-            "karte": tiefenkarte.karte(hist),
             "s": s,
         })
 
@@ -124,9 +115,15 @@ def erzeuge_app():
 
     async def knotenseite_(request):
         t = Texte(sprache_aus_cookies(request.cookies))
+        # Drei Quellen nebenlaeufig - der Knoten ueber RPC, das Histogramm ueber
+        # Electrum, die Kennzahlen wieder ueber RPC. Nacheinander waere es die
+        # Summe der Wartezeiten statt der laengsten.
+        k, hist, s = await asyncio.gather(
+            knotenseite.seite(TOR), tiefenkarte.histogramm(),
+            spiel.fuer_seite(TOR, t))
         return vorlagen.TemplateResponse(request, "knoten.html", {
             "t": t, "pfad": request.url.path,
-            "k": await knotenseite.seite(TOR),
+            "k": k, "karte": tiefenkarte.karte(hist), "s": s,
         })
 
     async def blockseite_(request):

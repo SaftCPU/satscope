@@ -1,0 +1,13 @@
+{# Drei Kacheln, mehr nicht. Mempool zeigt vorne genau das, und es genuegt:
+   wer eine Ueberweisung macht, will EINE Zahl. Die vierte Stufe (144 Bloecke)
+   ist bewusst weg - sie beantwortet keine Frage, die man vorne stellt. #}
+{% if s and s.gebuehren %}
+<div class="gebuehren">
+  {% for g in s.gebuehren[:3] %}
+  <div class="geb">
+    <div class="geb-wert">{{ t.zahl(g.sat_vb, 0) }}<span>sat/vB</span></div>
+    <div class="geb-ziel">{{ t.t(g.schluessel) }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

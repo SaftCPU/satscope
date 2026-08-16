@@ -1,72 +1,14 @@
 {% extends "grundlage.html" %}
 
 {% block inhalt %}
+{# DREI Dinge, mehr nicht - das ist die Regel, die diese Seite uebersichtlich
+   haelt. Alles andere lebt an dem Objekt, zu dem es gehoert:
+     Knotenzustand, Mempool-Tiefe und Kennzahlen -> /node
+     Blockdetails -> /block/<hoehe>
+   Wer hier etwas hinzufuegen will, muss zuerst etwas wegnehmen. #}
 {% include "suche.html" %}
 
-{# Bild zuerst, Sprache nur als Bildunterschrift: die Tiefenkarte zeigt in
-   einem Blick, wo die eigene Gebuehr landet. Der Satz ist der Untertitel
-   dazu, nicht die Hauptaussage. #}
-{# Live-Blockkette. Die Teilvorlage bekommt NICHTS uebergeben - sie holt
-   sich alles selbst von /api/kette und laedt ihr CSS und JS selbst. #}
 {% include "teile/blockkette.html" %}
 
-{% include "teile/tiefenkarte.html" %}
-{% if satz %}<p class="lage lage-{{ lage_art }}">{{ satz }}</p>{% endif %}
-
-<section class="zustand">
-  <div class="zustand-kopf">
-    <span class="punkt {{ 'gut' if z.erreichbar and not z.holt_auf else 'schlecht' }}"></span>
-    <span class="zustand-titel">
-      {% if not z.erreichbar %}{{ t.t("state.unreachable") }}
-      {% elif z.holt_auf %}{{ t.t("state.syncing") }}
-      {% else %}{{ t.t("state.ok") }}{% endif %}
-    </span>
-  </div>
-
-  <div class="zeile">
-    <span class="k">{{ t.t("block.height") }}</span>
-    <span class="w hell">{{ t.zahl(z.hoehe) }}</span>
-  </div>
-  <div class="zeile">
-    <span class="k">{{ t.t("block.age") }}</span>
-    <!-- Das Alter waechst weiter, ohne dass die Seite neu geladen wird:
-         der Zeitstempel steht im data-Attribut, satscope.js zaehlt hoch. -->
-    <span class="w" data-alter-seit="{{ z.block_zeit or '' }}">
-      {{ dauer(z.block_alter) }}
-    </span>
-  </div>
-  <div class="zeile">
-    <span class="k">{{ t.t("mempool.size") }}</span>
-    <span class="w">
-      {% if z.mempool_bytes %}{{ t.zahl(z.mempool_bytes / 1000000, 1) }} MB{% else %}{{ t.t("value.missing") }}{% endif %}
-    </span>
-  </div>
-  <!-- Der Index gegen den Knoten gehalten. Genau die Entwurfsidee: nicht die
-       nackte Zahl, sondern was sie bedeutet. -->
-  <div class="zeile">
-    <span class="k">{{ t.t("index.title") }}</span>
-    <span class="w">
-      {% if z.index_hoehe is none %}{{ t.t("value.missing") }}
-      {% else %}{{ t.zahl(z.index_hoehe) }}
-        <span class="nebensatz">
-          {%- if z.index_rueckstand is none %}
-          {%- elif z.index_rueckstand == 0 %}{{ t.t("index.aligned") }}
-          {%- elif z.index_rueckstand > 0 %}{{ t.t("index.behind", n=t.zahl(z.index_rueckstand)) }}
-          {%- else %}{{ t.t("index.ahead") }}{% endif -%}
-        </span>
-      {% endif %}
-    </span>
-  </div>
-  <div class="zeile">
-    <span class="k">{{ t.t("node.peers") }}</span>
-    <span class="w">
-      {% if z.verbindungen is not none %}{{ t.zahl(z.verbindungen) }}{% else %}{{ t.t("value.missing") }}{% endif %}
-    </span>
-  </div>
-</section>
-
-<p class="hinweis">{{ t.t("stage.notice") }}</p>
-
-{% include "teile/spiel.html" %}
-
+{% include "teile/gebuehren.html" %}
 {% endblock %}

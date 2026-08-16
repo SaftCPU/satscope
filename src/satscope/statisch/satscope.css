@@ -89,3 +89,27 @@ body{
 .lage-gut{border-left-color:var(--gut)}
 .lage-warnung{border-left-color:var(--schlecht)}
 .lage-normal{border-left-color:var(--akzent)}
+
+/* --- Gebuehrenkacheln: drei Stueck, nebeneinander, gross lesbar ---
+   Bewusst schlicht gehalten. Die Zahl ist das Einzige, was zaehlt: wer eine
+   Ueberweisung macht, sucht sie in einer Sekunde und liest sonst nichts. */
+.gebuehren{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:18px;
+}
+.geb{
+  background:var(--flaeche); border:1px solid var(--linie); border-radius:12px;
+  padding:14px 10px; text-align:center;
+}
+.geb-wert{
+  font-size:1.5rem; font-weight:800; letter-spacing:-.03em; color:var(--akzent);
+  font-variant-numeric:tabular-nums; line-height:1.1;
+}
+.geb-wert span{
+  display:block; font-size:.62rem; font-weight:600; letter-spacing:.08em;
+  color:var(--gedaempft); text-transform:uppercase; margin-top:3px;
+}
+.geb-ziel{font-size:.75rem; color:var(--gedaempft); margin-top:6px}
+@media (max-width:380px){
+  .geb-wert{font-size:1.25rem}
+  .geb{padding:11px 6px}
+}
