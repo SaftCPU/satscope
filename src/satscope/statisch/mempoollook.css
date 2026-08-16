@@ -1,0 +1,723 @@
+/* Mempool-Look: das Gestaltungssystem.
+   ============================================================================
+
+   WAS DIESE DATEI IST
+   Sie ist die EINZIGE Stelle, an der die Farben, die Schriften und der
+   Zuschnitt des Seitengeruests festgelegt werden. Sie wird ZULETZT geladen -
+   nach satscope.css und nach feinschliff.css - und schreibt deren Variablen um.
+   Aendern will man die Gestaltung also hier und nirgends sonst.
+
+   WARUM UEBERSCHREIBEN UND NICHT ERSETZEN
+   satscope.css, feinschliff.css, blockkette.css und die Seitendateien sind
+   TABU (fremdes Eigentum in dieser Arbeitsteilung). Alle rechnen aber sauber
+   mit denselben Variablen: --grund, --flaeche, --linie, --tinte, --gedaempft,
+   --akzent, --gut, --schlecht. Wer diese acht Werte neu belegt, faerbt die
+   ganze Anwendung um, ohne eine einzige fremde Zeile anzufassen. Genau darauf
+   beruht diese Datei.
+
+   WOHER DIE WERTE KOMMEN
+   Aus der laufenden mempool.space-Instanz (styles.*.css). Sie sind hier
+   WOERTLICH uebernommen und bilden das DUNKLE Thema - das Original kennt nur
+   dieses. Das helle Thema ist daraus abgeleitet: gleicher Aufbau, gleiche
+   Rollen, gleiche Blaustichigkeit, nur die Helligkeiten sind gespiegelt und
+   die Buntfarben so weit nachgedunkelt, dass sie auf Weiss lesbar bleiben.
+   Jede Nachdunklung steht unten mit ihrem gemessenen Kontrastwert.
+
+   EISERNE REGEL FUER ALLE BAUTEILE
+   Farben ausschliesslich ueber var(--...). Ein fest eingetragener Hexwert in
+   einem Bauteil sieht in genau einem der beiden Themen richtig aus und im
+   anderen falsch - und der Fehler faellt erst dem Nutzer auf, weil niemand
+   beide Themen durchklickt.
+
+   Der Dreiblock unten (blank / Medienabfrage / [data-theme]) ist derselbe wie
+   in satscope.css und feinschliff.css:
+     :root                                    das helle Thema, immer definiert
+     @media (prefers-color-scheme: dark) mit
+       :root:not([data-theme="light"])        Systemvorgabe dunkel, aber eine
+                                              ausdrueckliche Wahl "hell" schlaegt
+                                              sie
+     :root[data-theme="dark"]                 der Umschalter gewinnt in BEIDE
+                                              Richtungen
+   Keine Farbe wird NUR in einem Medienblock definiert. Sonst faellt sie in dem
+   Thema, das den Block nicht trifft, auf "nicht gesetzt" zurueck - und das ist
+   nicht etwa die andere Farbe, sondern gar keine.
+   ========================================================================== */
+
+
+/* ===========================================================================
+   1. FARBEN
+   ========================================================================= */
+
+:root{
+  /* --- Schriftstapel. Woertlich aus dem Original. -------------------------
+     Der Flaechenstapel nennt bewusst auch "Noto Sans" und "Liberation Sans":
+     auf einem Raspberry Pi mit schlankem Debian ist keine der Apple- oder
+     Microsoft-Schriften vorhanden, und ohne diese beiden landete der Browser
+     bei seiner eigenen Vorgabe - meist DejaVu Sans, die deutlich breiter baut
+     und die Kopfleiste umbrechen laesst.
+     Der Zahlenstapel ist der Grund, warum Hashes untereinander stehen und
+     warum eine Ziffernkolonne nicht zappelt, wenn sich eine Stelle aendert. */
+  --schrift:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+            "Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif;
+  --schrift-mono:SFMono-Regular,Menlo,Monaco,Consolas,
+                 "Liberation Mono","Courier New",monospace;
+
+  /* --- Markenfarbe. In BEIDEN Themen dieselbe. ---------------------------
+     Bitcoin-Orange ist eine Marke, keine Gestaltungsentscheidung; sie darf
+     nicht mit dem Thema wandern, sonst ist sie nicht mehr wiedererkennbar.
+     Sie taugt allerdings NICHT als Textfarbe auf Weiss (gemessen 2,30:1) -
+     deshalb gibt es --auf-orange fuer Beschriftungen, die darauf liegen. */
+  --orange:#f7931a;
+  --auf-orange:#11131f;
+
+  /* --- helles Thema (abgeleitet) ---------------------------------------- */
+  --grund:#ffffff;          /* Seitengrund, weiss wie gefordert            */
+  --flaeche:#f3f5fa;        /* Karten und Leisten, blaustichig wie #272f4e */
+  --tief:#e7ebf4;           /* die noch tiefere Flaeche (Gegenstueck #212529) */
+  --linie:#dde2ee;
+  --tinte:#11131f;          /* dasselbe Blauschwarz, hier als Schrift  18,47:1 */
+  --gedaempft:#5b6472;      /* auf --flaeche gemessen 5,48:1                 */
+  --gedaempft-klar:#3f4655; /* die deutlichere Stufe, auf --flaeche 8,68:1   */
+
+  /* Der Akzent des Originals (#007cfa) erreicht als SCHRIFT auf Weiss nur
+     3,99:1 und verfehlt damit WCAG AA. Fuer das helle Thema ist er deshalb
+     nachgedunkelt: #0060c9 misst 5,97:1 auf Weiss und 5,47:1 auf --flaeche,
+     bleibt aber derselbe Blauton. --akzent-satt haelt daneben das originale
+     Blau bereit, fuer FLAECHEN, auf denen kein Text steht. */
+  --akzent:#0060c9;
+  --akzent-satt:#007cfa;
+  --auf-akzent:#ffffff;     /* Weiss auf #0060c9: 5,97:1                     */
+
+  --cyan:#0e7f96;           /* Original #00ddff, auf Weiss unsichtbar; 4,67:1 */
+  --gut:#0a7c24;            /* Original #0aab2f haette 3,05:1; hier 5,36:1    */
+  --schlecht:#dc3545;       /* unveraendert, auf Weiss 4,53:1                 */
+  --bernstein:#8a6100;      /* Original #ffc107 haette 1,66:1; hier 5,54:1    */
+
+  /* --- Zuschnitt --------------------------------------------------------
+     Das Original ist ein breites Armaturenbrett, kein Lesetext. 560 px, wie
+     satscope.css sie vorgab, fassen das Blockband nicht einmal zur Haelfte.
+     Als Variable, damit eine Seite sie notfalls fuer sich enger setzen kann. */
+  --inhalt-breite:1180px;
+  --radius:4px;             /* flach wie im Original, nicht rund             */
+  --radius-gross:6px;
+  --karte-innen:14px 16px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    /* --- das Original, woertlich ---------------------------------------- */
+    --grund:#11131f;        /* das Erkennungszeichen: dunkles Blauschwarz   */
+    --flaeche:#272f4e;      /* Karten, Kaesten, Leistenfelder               */
+    --tief:#212529;
+    --linie:#3b4668;        /* abgeleitet: eine Stufe heller als --flaeche  */
+    --tinte:#ffffff;
+    /* ⚠️ GEMESSEN, und der Wert ist bekannt schwach: #6c757d misst auf
+       --flaeche nur 2,79:1 und auf --grund 3,94:1 - beides unter WCAG AA.
+       Er steht hier trotzdem, weil er der Wert des Originals ist und die
+       Vorgabe woertlich lautete. Die Bauteile dieser Datei nehmen deshalb
+       ueberall dort, wo WORTE stehen, --gedaempft-klar (#adb5bd, 6,31:1 auf
+       --flaeche) - ebenfalls eine Farbe des Originals. --gedaempft bleibt
+       fuer Symbole und Linien, wo 3:1 genuegt.
+       Wer die Anwendung durchgehend auf AA heben will, tauscht genau EINE
+       Zeile: --gedaempft:#adb5bd. Das ist dann eine Abweichung vom Original
+       und deshalb eine Entscheidung des Nutzers, nicht meine. */
+    --gedaempft:#6c757d;
+    --gedaempft-klar:#adb5bd;
+
+    --akzent:#007cfa;
+    --akzent-satt:#007cfa;
+    /* Weiss auf #007cfa misst nur 3,99:1. Der Seitengrund als Aufschrift
+       misst 4,63:1 - deshalb dunkle Schrift auf blauer Flaeche, genau wie es
+       feinschliff.css fuer sein Lila schon entschieden hatte. */
+    --auf-akzent:#11131f;
+
+    --cyan:#00ddff;
+    --gut:#0aab2f;
+    --schlecht:#dc3545;
+    --bernstein:#ffc107;
+  }
+}
+
+:root[data-theme="dark"]{
+  --grund:#11131f;
+  --flaeche:#272f4e;
+  --tief:#212529;
+  --linie:#3b4668;
+  --tinte:#ffffff;
+  --gedaempft:#6c757d;
+  --gedaempft-klar:#adb5bd;
+
+  --akzent:#007cfa;
+  --akzent-satt:#007cfa;
+  --auf-akzent:#11131f;
+
+  --cyan:#00ddff;
+  --gut:#0aab2f;
+  --schlecht:#dc3545;
+  --bernstein:#ffc107;
+}
+
+
+/* ===========================================================================
+   2. SCHRIFTEN
+
+   Der Flaechenstapel kommt an den Koerper und vererbt sich von dort.
+   Der Zahlenstapel muss dagegen einzeln gesetzt werden: die vorhandenen
+   Bausteine tragen ihn als festen Wert (ui-monospace,"SF Mono",Menlo,
+   monospace) im Bauteil. Weil diese Datei zuletzt geladen wird, gewinnt bei
+   gleicher Spezifitaet die spaetere Regel - die Auswahlliste unten ist
+   deshalb Zeichen fuer Zeichen die der fremden Dateien.
+   Wer ein neues Bauteil baut, nimmt var(--schrift-mono) und braucht hier
+   nichts nachzutragen.
+   ========================================================================= */
+
+body{
+  font-family:var(--schrift);
+  /* text-rendering bewusst NICHT auf optimizeLegibility: das schaltet auf
+     schwachen Geraeten Ligaturen und Kerning an, die bei Ziffernkolonnen
+     nichts nuetzen und beim Rollen des Blockbands Rechenzeit kosten. */
+}
+
+/* Alle Zahlen, Hashes und Kennungen - vorhandene Bausteine ... */
+.w,
+.suche input,
+.kennung,
+.k.mono,
+.kopf-suchfeld,
+kbd,
+.kt-hash,
+.ad-marke,
+.ad-anzahl,
+.gb-tafel .zahl,
+.mp-gross,
+.mp-medianzahl,
+.mp-ziel .w,
+.mi-liste a,
+.mi-tabelle td.r, .mi-tabelle th.r,
+.mi-tabelle td a,
+.mi-roh,
+.spiel-gross,
+.spiel-uhr-wert,
+.spiel-stufe-wert,
+.tk-marke,
+.band figcaption,
+/* ... und die neuen aus dieser Datei */
+.zahl-mono,
+.karte-zahl,
+.kb-kopf,.kb-gross,.kb-mittel,
+.kt-hoehe,
+.geb-wert{
+  font-family:var(--schrift-mono);
+  /* Gleich breite Ziffern. Ohne das wandert eine Kolonne bei jeder Aenderung
+     seitlich - im Blockband, das sich im Sekundentakt fortschreibt, ist das
+     der Unterschied zwischen Ablesen und Flimmern. */
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+}
+
+/* Diese drei sitzen INNERHALB eines Monospace-Elements und wollen wieder die
+   Flaechenschrift. In den fremden Dateien steht dort font-family:inherit -
+   das erbt aber genau den Zahlenstapel des Elternteils, den sie loswerden
+   wollten. Hier ausdruecklich benannt statt geerbt. */
+.nebensatz,
+.mp-einheit,
+.geb-wert span{
+  font-family:var(--schrift);
+  font-variant-numeric:normal;
+}
+
+
+/* ===========================================================================
+   3. SEITENGERUEST
+   ========================================================================= */
+
+body{
+  background:var(--grund);
+  color:var(--tinte);
+}
+
+/* Der Inhalt wird breit. Die Innenabstaende bleiben schmal, damit auf dem
+   Handy nichts verschenkt wird. */
+.inhalt{
+  max-width:var(--inhalt-breite);
+  padding:20px 16px 56px;
+}
+
+/* Fliesstext bleibt schmal, auch wenn die Seite breit ist: eine Zeile ueber
+   die vollen 1180 px liest niemand zu Ende, das Auge findet den Zeilenanfang
+   nicht wieder. Die Zahlenkaesten daneben duerfen die Breite nutzen. */
+.lage,
+.hinweis{
+  max-width:78ch;
+}
+.lage{
+  border-radius:var(--radius);
+  border-left-width:3px;
+}
+
+/* Flach statt rund - das ist der auffaelligste Unterschied zwischen dem
+   bisherigen Aussehen (12 px Rundung, Karten schweben) und dem Original
+   (4 px, Karten liegen auf). */
+.zustand,
+.liste,
+.geb,
+.kette-tafel{
+  border-radius:var(--radius);
+}
+/* Die aufklappende Tafel darf eine Spur runder sein als die liegenden Karten:
+   sie SCHWEBT ueber der Seite, und die staerkere Rundung ist genau der
+   Unterschied, den das Auge als "liegt darueber" liest. */
+.hilfe-tafel{border-radius:var(--radius-gross)}
+.suche input,
+.suche button,
+.kopf-suche,
+.themenwahl{
+  border-radius:var(--radius);
+}
+
+.fuss{
+  border-top:1px solid var(--linie);
+  background:var(--grund);
+  color:var(--gedaempft-klar);
+}
+
+
+/* ===========================================================================
+   4. KOPFLEISTE IM MEMPOOL-ZUSCHNITT
+
+   Aufbau, wie im Original:
+       [ Marke ]      [ ------- Suche, breit und mittig ------- ]   [ Werkzeuge ]
+       [ Uebersicht  Bloecke  Mempool  Gebuehren  Mining  Knoten ]
+
+   .kopf ist in satscope.css ein Flexkasten mit space-between. Hier wird er zum
+   Block und die Aufteilung wandert nach .kopf-innen. Grund: die Leiste soll
+   ueber die volle Fensterbreite dunkel sein, ihr INHALT aber auf dieselbe
+   Breite begrenzt wie der Seiteninhalt - sonst klebt die Marke bei 2560 px am
+   linken Bildschirmrand und die Werkzeuge am rechten.
+   Wichtig: die order-Regeln aus feinschliff.css (@media max-width:640px)
+   wirken weiter. Sie gelten fuer .marke, .kopf-suche und .kopf-werkzeuge, und
+   die sind jetzt Flexkinder von .kopf-innen - order braucht nur IRGENDEINEN
+   Flexelternteil, nicht den urspruenglichen.
+   ========================================================================= */
+
+.kopf{
+  display:block;
+  padding:0;
+  background:var(--grund);
+  border-bottom:1px solid var(--linie);
+}
+.kopf-innen{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  row-gap:10px;
+  max-width:var(--inhalt-breite);
+  margin:0 auto;
+  padding:9px 16px;
+}
+
+/* --- Marke ---------------------------------------------------------------
+   .marke-punkt und .marke-name bleiben als Klassen erhalten, weil
+   satscope.css und feinschliff.css sie kennen. Aus dem runden Punkt wird ein
+   kleines abgerundetes Quadrat in Bitcoin-Orange - das Original setzt an
+   dieser Stelle sein Zeichen, und ein Kreis waere hier das einzige runde
+   Element auf einer sonst kantigen Seite. */
+.marke{
+  flex:none;
+  gap:9px;
+  align-items:center;
+}
+.marke-punkt{
+  width:22px; height:22px;
+  border-radius:var(--radius);
+  background:var(--orange);
+  box-shadow:none;              /* satscope.css legt einen Schein um den Punkt */
+}
+.marke-name{
+  font-size:1.05rem;
+  font-weight:700;
+  letter-spacing:-.01em;
+  color:var(--tinte);
+}
+/* Der Zusatz steht nur, wenn Platz ist. Er erklaert die Marke beim ersten
+   Besuch und ist danach Beiwerk - deshalb faellt er als Erstes weg. */
+.marke-zusatz{
+  font-size:.72rem;
+  color:var(--gedaempft-klar);
+  white-space:nowrap;
+  border-left:1px solid var(--linie);
+  padding-left:9px;
+  margin-left:2px;
+}
+
+/* --- Suche ---------------------------------------------------------------
+   Mittig und breit, das ist im Original das auffaelligste Merkmal der Leiste.
+   flex:1 1 260px nimmt allen Platz, den Marke und Werkzeuge uebriglassen;
+   margin:0 auto zentriert den Rest, wenn die Leiste breiter ist als
+   max-width. */
+.kopf-suche{
+  flex:1 1 260px;
+  min-width:0;
+  max-width:620px;
+  margin:0 auto;
+  gap:0;
+  padding:0 0 0 12px;
+  background:var(--flaeche);
+  border:1px solid var(--linie);
+  /* Die Lupe sitzt buendig in der rechten Ecke und traegt dort ihre eigene
+     Rundung. Ohne overflow:hidden lugt ihre eckige Flaeche beim Ueberfahren
+     unter der Rundung des Rahmens hervor - ein Pixel, den man nicht mehr
+     uebersieht, wenn man ihn einmal gesehen hat. */
+  overflow:hidden;
+}
+/* Der Schein um das Feld nimmt --akzent-satt, nicht --akzent: hier liegt kein
+   Text darauf, also darf das originale, kraeftigere Blau stehen - genau der
+   Grund, warum es die zweite Variable ueberhaupt gibt. */
+.kopf-suche:focus-within{
+  border-color:var(--akzent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--akzent-satt) 28%, transparent);
+}
+.kopf-suchfeld{
+  font-size:.84rem;
+  padding:9px 0;
+  color:var(--tinte);
+}
+/* opacity:1 ist Pflicht: Firefox faerbt Platzhalter von sich aus mit
+   opacity:.54 ein, und aus 6,31:1 wuerde damit still ein Wert unter 3:1. */
+.kopf-suchfeld::placeholder{
+  color:var(--gedaempft-klar);
+  opacity:1;
+}
+/* Die Lupe ist ein voller Knopf am rechten Ende des Feldes, kein Beiwerk:
+   auf dem Handy ist sie die einzige Moeglichkeit, ohne Eingabetaste zu
+   suchen. */
+.kopf-lupe{
+  width:38px; height:38px;
+  flex:none;
+  border-radius:0 var(--radius) var(--radius) 0;
+  color:var(--gedaempft);
+}
+.kopf-lupe:hover,
+.kopf-lupe:focus-visible{
+  background:var(--akzent);
+  color:var(--auf-akzent);
+}
+
+/* --- Werkzeuge rechts ---------------------------------------------------- */
+.kopf-werkzeuge{
+  flex:none;
+  gap:6px;
+  margin-left:auto;
+}
+.werkzeug-knopf,
+.thema-knopf,
+.sprachwahl{
+  border-radius:var(--radius);
+}
+/* Die Sprachwahl traegt WORTE ("DE"/"EN"), die Nachbarn nur Symbole. Deshalb
+   die klarere Stufe: fuer Symbole genuegen 3:1, fuer Schrift nicht. */
+.sprachwahl{
+  border-color:var(--linie);
+  color:var(--gedaempft-klar);
+  letter-spacing:.04em;
+}
+.sprachwahl:hover{
+  color:var(--tinte);
+  border-color:var(--akzent);
+}
+.themenwahl{
+  background:var(--flaeche);
+  border-color:var(--linie);
+}
+.thema-knopf{
+  border-radius:calc(var(--radius) - 1px);
+}
+.thema-knopf[aria-pressed="true"]{
+  background:var(--akzent);
+  color:var(--auf-akzent);
+  box-shadow:none;
+}
+
+/* --- Bereichsnavigation --------------------------------------------------
+   Eine eigene Zeile unter der Leiste. Sie rollt waagerecht, statt umzubrechen:
+   sechs Punkte sind auf 360 px breiter als der Bildschirm, und eine zweite
+   Zeile kostet dort mehr Hoehe als das Wischen kostet. */
+.hauptnav{
+  display:block;
+  padding:0;
+  background:var(--grund);
+  border-bottom:1px solid var(--linie);
+  /* Der Balken gehoert an die AEUSSERE Leiste; die innere rollt. */
+  overflow:visible;
+}
+.nav-innen{
+  display:flex;
+  gap:0;
+  max-width:var(--inhalt-breite);
+  margin:0 auto;
+  padding:0 16px;
+  overflow-x:auto;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+.nav-innen::-webkit-scrollbar{display:none}
+.hauptnav a{
+  flex:none;
+  padding:11px 14px;
+  font-size:.84rem;
+  font-weight:500;
+  color:var(--gedaempft-klar);
+  border-bottom:2px solid transparent;
+  white-space:nowrap;
+  /* Die Farbe wandert, die Groesse nicht: eine fett werdende Beschriftung
+     wuerde die Nachbarn beim Ueberfahren verschieben. */
+  transition:color .14s ease, border-color .14s ease;
+}
+.hauptnav a:hover{
+  color:var(--tinte);
+  border-bottom-color:color-mix(in srgb, var(--akzent) 45%, transparent);
+}
+.hauptnav a.hier{
+  color:var(--akzent);
+  border-bottom-color:var(--akzent);
+  font-weight:600;
+}
+
+
+/* ===========================================================================
+   5. DAS KASTENBAUTEIL .karte
+
+   Der Kasten unter dem Blockband: Titelzeile, Inhalt, dezenter Rand, flach
+   auf --flaeche. Aufbau:
+
+       <section class="karte">
+         <header class="karte-kopf">
+           <h2 class="karte-titel">…</h2>
+           <span class="karte-marke">…</span>      (freiwillig, rechts)
+         </header>
+         <div class="karte-inhalt"> … </div>
+         <footer class="karte-fuss"> … </footer>   (freiwillig)
+       </section>
+
+   Die Titelzeile ist ein eigener Streifen mit Trennlinie, nicht nur eine
+   fette Zeile: so bleibt der Kasten auch dann als Einheit erkennbar, wenn
+   mehrere nebeneinander stehen und verschieden hoch sind.
+
+   .karte-inhalt hat den Innenabstand, .karte selbst nicht. Damit kann ein
+   Bauteil, das die volle Breite braucht (eine Tabelle, ein Diagramm), einfach
+   NEBEN .karte-inhalt stehen und bis an den Rand laufen.
+   ========================================================================= */
+
+.karte{
+  display:flex;
+  flex-direction:column;
+  min-width:0;                 /* sonst sprengt eine breite Tabelle das Gitter */
+  background:var(--flaeche);
+  border:1px solid var(--linie);
+  border-radius:var(--radius);
+  color:var(--tinte);
+}
+
+.karte-kopf{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 16px;
+  border-bottom:1px solid var(--linie);
+}
+.karte-titel{
+  margin:0;
+  font-size:.74rem;
+  font-weight:700;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--gedaempft-klar);
+}
+/* Die Zusatzangabe rechts in der Titelzeile: Stand, Einheit, Anzahl. Sie ist
+   bewusst leise - sie soll den Titel ergaenzen, nicht mit ihm konkurrieren. */
+.karte-marke{
+  font-size:.72rem;
+  color:var(--gedaempft-klar);
+  white-space:nowrap;
+}
+/* Ein Titel, der zugleich Verweis ist (Kasten -> ganze Seite). */
+.karte-titel a{
+  color:inherit;
+  text-decoration:none;
+}
+.karte-titel a:hover{color:var(--akzent)}
+
+.karte-inhalt{
+  flex:1;
+  padding:var(--karte-innen);
+}
+/* Ein Kasten, der nur eine Liste traegt, braucht keinen Innenabstand oben und
+   unten - die Zeilen bringen ihren eigenen mit. */
+.karte-inhalt.eng{padding:2px 16px}
+
+.karte-fuss{
+  padding:9px 16px;
+  border-top:1px solid var(--linie);
+  font-size:.72rem;
+  color:var(--gedaempft-klar);
+}
+
+/* Die grosse Zahl im Kasten. Sie ist der Grund, warum der Kasten da ist. */
+.karte-zahl{
+  font-size:1.6rem;
+  font-weight:700;
+  line-height:1.15;
+  letter-spacing:-.02em;
+  color:var(--tinte);
+}
+.karte-zahl small{
+  display:block;
+  font-size:.66rem;
+  font-weight:600;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--gedaempft-klar);
+  font-family:var(--schrift);
+  margin-top:3px;
+}
+/* Wertung ueber Variablen, nie ueber feste Farben. */
+.karte-zahl.gut{color:var(--gut)}
+.karte-zahl.schlecht{color:var(--schlecht)}
+.karte-zahl.hell{color:var(--akzent)}
+
+/* Die Schluessel-Wert-Zeilen aus satscope.css (.zeile/.k/.w) funktionieren
+   unveraendert im Kasten; nur die Trennlinie der ersten Zeile stoert dort,
+   weil die Titelzeile schon eine mitbringt. */
+.karte .zeile:first-child{border-top:none}
+
+/* Ein Gitter aus Kaesten. auto-fit + minmax statt fester Spaltenzahl: dieselbe
+   Regel traegt drei Kaesten auf dem Schreibtisch und einen auf dem Handy,
+   ohne dass es dafuer eine zweite Medienabfrage braucht. */
+.kartenband{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(272px, 1fr));
+  gap:12px;
+  margin:16px 0;
+  align-items:start;
+}
+/* Ein Kasten, der zwei Spalten fuellen soll (eine Tabelle, ein Diagramm).
+   Die Ruecknahme unten ist Pflicht und keine Kosmetik: in einem Gitter, das
+   nur noch EINE Spalte hat, wuerde "span 2" eine zweite, leere Spalte
+   erzwingen - der Kasten waere dann halb so breit wie seine Nachbarn. */
+.kartenband .karte.breit{grid-column:span 2}
+@media (max-width: 620px){
+  .kartenband .karte.breit{grid-column:auto}
+}
+
+
+/* --- Die Tonleiter -------------------------------------------------------
+   Die vier restlichen Farben des Originals - Cyan fuer wartende Bloecke,
+   Bernstein fuer "Achtung, aber kein Fehler", Bitcoin-Orange fuer die Marke,
+   und die tiefere Flaeche fuer eingelassene Kaesten.
+
+   Sie stehen hier als winzige Klassen und nicht nur als Variablen, damit ein
+   Bauteil sie benutzen kann, OHNE eine Farbe zu schreiben. Genau dort
+   entstehen sonst die Hexwerte, die in einem der beiden Themen falsch sind:
+   jemand braucht schnell ein Cyan, tippt #00ddff, und im hellen Thema ist die
+   Zeile unlesbar. Mit .ton-cyan kann das nicht passieren. */
+.ton-cyan{color:var(--cyan)}
+.ton-bernstein{color:var(--bernstein)}
+.ton-gut{color:var(--gut)}
+.ton-schlecht{color:var(--schlecht)}
+.ton-gedaempft{color:var(--gedaempft)}
+/* Fuer Flaechen gibt es die Paare aus Grund UND Aufschrift. Eine Flaechenfarbe
+   ohne die dazu gemessene Textfarbe ist eine halbe Angabe - und die zweite
+   Haelfte raet dann jeder selbst. */
+.flaeche-tief{background:var(--tief); color:var(--tinte)}
+.flaeche-orange{background:var(--orange); color:var(--auf-orange)}
+.flaeche-akzent{background:var(--akzent); color:var(--auf-akzent)}
+
+
+/* ===========================================================================
+   6. SCHMALE GERAETE
+
+   Zwei Dinge sind hier Pflicht:
+     - das Suchfeld bekommt die VOLLE Breite (eine eigene Zeile)
+     - die Bereichsnavigation rollt waagerecht
+   feinschliff.css setzt dafuer schon order:1/2/3 auf Marke, Werkzeuge und
+   Suche. Diese Reihenfolge wird hier nur bestaetigt und mit den passenden
+   Abstaenden versehen - zwei sich widersprechende Umbruchregeln in zwei
+   Dateien waeren der sichere Weg zu einer Leiste, die je nach Ladereihenfolge
+   anders aussieht.
+   ========================================================================= */
+
+@media (max-width: 860px){
+  .marke-zusatz{display:none}      /* zuerst faellt das Beiwerk */
+}
+
+@media (max-width: 640px){
+  .kopf-innen{
+    padding:8px 12px;
+    gap:8px;
+    row-gap:8px;
+  }
+  .marke{order:1}
+  .kopf-werkzeuge{order:2; margin-left:auto}
+  .kopf-suche{
+    order:3;
+    flex:1 1 100%;
+    max-width:none;
+    margin:0;
+  }
+  .nav-innen{padding:0 12px}
+  .hauptnav a{padding:10px 11px; font-size:.82rem}
+  .inhalt{padding:14px 12px 44px}
+  .kartenband{gap:10px; margin:12px 0}
+  .karte-zahl{font-size:1.4rem}
+}
+
+@media (max-width: 380px){
+  .marke-name{font-size:.98rem}
+  .marke-punkt{width:19px; height:19px}
+  .kopf-werkzeuge{gap:4px}
+  .karte-kopf{padding:9px 12px}
+  .karte-inhalt{padding:12px}
+  .karte-fuss{padding:8px 12px}
+}
+
+
+/* ===========================================================================
+   7. BEWEGUNGSARMUT
+
+   feinschliff.css schaltet bereits global alle Uebergaenge ab. Diese Regel
+   ist trotzdem kein Doppel: sie steht HIER, damit die Datei fuer sich
+   genommen vollstaendig ist. Wer mempoollook.css spaeter einmal ohne
+   feinschliff.css einsetzt, bekommt sonst still wieder Bewegung, die jemand
+   ausdruecklich abbestellt hat.
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce){
+  .hauptnav a,
+  .kopf-suche,
+  .kopf-lupe,
+  .thema-knopf,
+  .sprachwahl,
+  .werkzeug-knopf{
+    transition:none !important;
+  }
+  /* Waagerechtes Rollen der Navigation bleibt moeglich, nur nicht mehr
+     weich - ein Sprung ist kein Bewegungsreiz. */
+  .nav-innen{scroll-behavior:auto}
+}
+
+
+/* ===========================================================================
+   8. DRUCK
+
+   Kein Muss, aber billig: wer eine Blockseite als Beleg ausdruckt, will die
+   Zahlen, nicht die dunkle Flaeche. Vier Zeilen sparen eine halbe
+   Tonerpatrone.
+   ========================================================================= */
+
+@media print{
+  .kopf,.hauptnav,.sprung,.kopieren{display:none !important}
+  .karte{border-color:#999; background:none}
+  body{background:#fff; color:#000}
+}

@@ -12,8 +12,9 @@ import asyncio
 import os
 
 from . import (adresse, adressdetails, blockliste, blockseite, elektrum,
-               gebuehren, kette, knoten, knotenseite, lage, mempoolseite,
-               mining, spiel, suchen, tiefenkarte, txseite, xpub)
+               gebuehren, kaesten, kette, knoten, knotenseite, lage,
+               mehrwert, mempoolseite, mining, spiel, suchen, tiefenkarte,
+               txseite, xpub)
 from .rpc import BILLIG, Tor
 from .sprache import COOKIE, COOKIE_ALTER, SPRACHEN, Texte, sprache_aus_cookies
 
@@ -64,11 +65,16 @@ def erzeuge_app():
         # Die Startseite zeigt nur noch Suche, Blockkette und Gebuehren. Sie
         # braucht deshalb weder den vollen Knotenzustand noch die Tiefenkarte -
         # das spart bei jedem Aufruf mehrere RPC-Runden.
-        s = await spiel.fuer_seite(TOR, t)
+        # Drei Erhebungen nebenlaeufig. Nacheinander waere es die Summe der
+        # Wartezeiten statt der laengsten - auf einem Knoten, bei dem wir Gast
+        # sind, zaehlt jede eingesparte Runde.
+        s, mw = await asyncio.gather(spiel.fuer_seite(TOR, t),
+                                     mehrwert.seite(TOR))
+        ka = await kaesten.erhebe(TOR, s)
         return vorlagen.TemplateResponse(request, "start.html", {
             "t": t,
             "pfad": request.url.path,
-            "s": s,
+            "s": s, "ka": ka, "mw": mw,
         })
 
     def _btc_lokal(sat, t):
@@ -202,6 +208,18 @@ def erzeuge_app():
             {"t": t, "pfad": request.url.path, "x": x},
             status_code=200 if (x and x.get("gefunden")) else 404)
 
+    async def projektion_(request):
+        """Die kuenftigen Bloecke fuers Blockband.
+
+        Quelle ist das Gebuehrenhistogramm des Electrum-Servers - gemessen 5 ms.
+        Bitcoin Core koennte dasselbe nur ueber getrawmempool true liefern:
+        350-450 ms und 13 MB JSON, im Webprozess ausdruecklich verboten.
+        """
+        from starlette.responses import JSONResponse
+        hist = await tiefenkarte.histogramm()
+        return JSONResponse({"bloecke": mempoolseite.projektion(hist) if hist else []},
+                            headers={"Cache-Control": "no-store"})
+
     async def sprache_setzen(request):
         wahl = request.path_params["sprache"]
         ziel = request.query_params.get("weiter", "/")
@@ -222,6 +240,7 @@ def erzeuge_app():
         Route("/block/{kennung}", blockseite_),
         Route("/tx/{txid}", txseite_),
         Route("/api/kette", kette.handler(TOR)),
+        Route("/api/projektion", projektion_),
         Route("/blocks", blockliste_),
         Route("/mempool", mempoolseite_),
         Route("/gebuehren", gebuehrenseite_),

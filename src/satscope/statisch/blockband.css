@@ -1,0 +1,349 @@
+/* Das Blockband - das Erkennungszeichen von mempool.space, nachgebaut.
+   ====================================================================
+   Aufbau (von links nach rechts, genau wie im Original):
+
+       [ projizierte Bloecke ]  |  [ bestaetigte Bloecke ]
+        nr 8 ... nr 2   nr 1    |   Spitze   -1   -2 ...
+
+   Der naechste kuenftige Block steht RECHTS in seiner Gruppe, direkt an der
+   Trennung: dort verlaesst er gleich die Warteschlange. Der neueste
+   bestaetigte Block steht LINKS in seiner Gruppe, ebenfalls an der Trennung -
+   ein neuer Block schiebt sich also genau in der Mitte herein und drueckt die
+   aelteren nach rechts. Das ist die Bewegung, die man von mempool.space kennt.
+
+   WARUM EIGENE FARBTOKEN und nicht die aus satscope.css:
+   Das Original ist NUR dunkel, und sein Blauschwarz (#11131f) ist das
+   eigentliche Erkennungszeichen. Die Seitenfarben von satscope.css sind
+   violett-neutral. Das Band bringt deshalb seine eigene, kleine Farbwelt mit -
+   dreifach gesetzt wie ueberall im Projekt: heller Grundfall auf blankem
+   :root, dunkel per prefers-color-scheme, dunkel per data-theme. Ein Wert, der
+   nur in einem Medienblock steht, fehlt im jeweils anderen Fall.
+
+   WARUM DAS HELLE THEMA ABGELEITET IST: Das Original kennt es nicht. Die
+   Wuerfelfarben sind hier dieselben Farbtoene, nur so weit abgedunkelt, dass
+   die weisse Schrift auf ihnen lesbar bleibt - der Aufbau, die Reihenfolge und
+   die Bedeutung der Farbe sind in beiden Themen identisch. */
+
+:root{
+  /* HELL - abgeleitet. Flaechen hell, Schrift dunkel, Wuerfel abgedunkelt. */
+  --bb-grund:#f1f2f7;          /* aus #11131f: dieselbe Rolle, invertiert */
+  --bb-flaeche:#e6e8f0;        /* aus #272f4e */
+  --bb-tinte:#11131f;
+  --bb-gedaempft:#6c757d;      /* im Original schon vorhanden */
+  --bb-linie:#d3d7e4;
+  --bb-akzent:#0062c8;         /* aus #007cfa, abgedunkelt fuer Weiss-auf-Blau */
+  --bb-neutral:#8b93a7;        /* unbekannte Gebuehr: grau, nie geraten */
+  /* Die Gebuehrenskala, sechs Stufen. Reihenfolge wie im Original:
+     Cyan -> Blau -> Gruen -> Bernstein -> Bitcoin-Orange -> Rot. */
+  --bb-s0:#0e8ea6;             /* aus #00ddff */
+  --bb-s1:#0062c8;             /* aus #007cfa */
+  --bb-s2:#0a8425;             /* aus #0aab2f */
+  --bb-s3:#9a7500;             /* aus #ffc107 */
+  --bb-s4:#c26f06;             /* aus #f7931a */
+  --bb-s5:#b02a37;             /* aus #dc3545 */
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    /* DUNKEL - die woertlichen Werte aus der laufenden mempool.space-Instanz. */
+    --bb-grund:#11131f;
+    --bb-flaeche:#272f4e;
+    --bb-tinte:#fff;
+    --bb-gedaempft:#adb5bd;
+    --bb-linie:#272f4e;
+    --bb-akzent:#007cfa;
+    --bb-neutral:#3d4666;
+    --bb-s0:#00ddff; --bb-s1:#007cfa; --bb-s2:#0aab2f;
+    --bb-s3:#ffc107; --bb-s4:#f7931a; --bb-s5:#dc3545;
+  }
+}
+:root[data-theme="dark"]{
+  --bb-grund:#11131f;
+  --bb-flaeche:#272f4e;
+  --bb-tinte:#fff;
+  --bb-gedaempft:#adb5bd;
+  --bb-linie:#272f4e;
+  --bb-akzent:#007cfa;
+  --bb-neutral:#3d4666;
+  --bb-s0:#00ddff; --bb-s1:#007cfa; --bb-s2:#0aab2f;
+  --bb-s3:#ffc107; --bb-s4:#f7931a; --bb-s5:#dc3545;
+}
+
+/* --- Rahmen und Gleis ---------------------------------------------------- */
+.bb{
+  /* --kante ist die Wuerfelkante, --tiefe die scheinbare Bautiefe (Deckel
+     oben, Seite rechts), --luecke der Abstand von Wuerfel zu Wuerfel.
+     ⚠️ --luecke MUSS groesser als --tiefe sein, sonst schiebt sich die rechte
+     Seitenflaeche eines Wuerfels ueber seinen Nachbarn. */
+  --kante:104px; --tiefe:15px; --luecke:22px;
+  /* Woertlich der Flaechentext-Stapel des Originals. Er steht hier und nicht
+     in satscope.css, damit der Baustein in sich geschlossen bleibt: er laesst
+     sich in jede Vorlage haengen, ohne dass am Grundgeruest etwas zu aendern
+     waere. */
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+    "Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif;
+  /* Die Spalte der Seite ist schmal (max-width 560px). Das Band holt sich das
+     Innenmass der Spalte zurueck - ein Zugewinn ohne vw-Einheit, denn 100vw
+     schliesst die Bildlaufleiste ein und laesst die ganze Seite waagerecht
+     ueberlaufen. */
+  margin:0 -22px 26px; position:relative;
+}
+.bb-rahmen{
+  position:relative; overflow-x:auto; overflow-y:hidden;
+  /* Der Deckel ragt um --tiefe nach oben aus dem Wuerfel heraus; ohne dieses
+     Innenmass schnitte overflow-y ihn ab. */
+  padding:calc(var(--tiefe) + 8px) 18px 14px;
+  background:var(--bb-grund);
+  border:1px solid var(--bb-linie); border-radius:12px;
+  scrollbar-width:thin; -webkit-overflow-scrolling:touch;
+}
+.bb-gleis{display:flex; align-items:flex-start; width:max-content}
+.bb-gruppe{display:flex; align-items:flex-start}
+/* Der neue Wuerfel waechst an der Trennung aus der Breite null heraus und ragt
+   dabei kurz nach links hinaus. Die bestaetigte Seite liegt deshalb oben - er
+   schiebt sich sichtbar UEBER die Warteschlange, aus der er gerade kommt. */
+.bb-bloecke{position:relative; z-index:1}
+
+/* Die Trennung zwischen Wartendem und Bestaetigtem: die Gegenwart.
+   Gestrichelt, weil die Grenze staendig wandert. */
+.bb-trenner{
+  flex:0 0 2px; width:2px; height:var(--kante); margin:var(--tiefe) 11px 0 0;
+  background:repeating-linear-gradient(180deg,
+    var(--bb-gedaempft) 0 5px, transparent 5px 11px);
+  opacity:.55; position:relative;
+}
+.bb-trenner i{
+  position:absolute; left:-3px; top:50%; width:8px; height:8px;
+  margin-top:-4px; border-radius:50%; background:var(--bb-akzent);
+}
+
+/* --- ein Wuerfel --------------------------------------------------------- */
+/* Der Wagen traegt die Breite (Kante + Luecke). Nur er wird beim Einschieben
+   animiert - dadurch ruecken alle rechts davon nach, ohne dass irgendwo eine
+   Breite gemessen werden muss. */
+.bb-w{
+  flex:0 0 auto; width:calc(var(--kante) + var(--luecke));
+  display:flex; flex-direction:column; align-items:flex-start;
+  text-decoration:none; color:inherit;
+  --f:var(--bb-neutral);        /* keine Gebuehr bekannt -> grau, nie geraten */
+}
+.bb-w[data-geb="0"]{--f:var(--bb-s0)}
+.bb-w[data-geb="1"]{--f:var(--bb-s1)}
+.bb-w[data-geb="2"]{--f:var(--bb-s2)}
+.bb-w[data-geb="3"]{--f:var(--bb-s3)}
+.bb-w[data-geb="4"]{--f:var(--bb-s4)}
+.bb-w[data-geb="5"]{--f:var(--bb-s5)}
+
+/* Der Wuerfel selbst: ein Quadrat mit zwei Pseudoflaechen. Deckel oben
+   (heller), Seite rechts (dunkler) - das ergibt den Blick von schraeg oben
+   links, den man vom Original kennt. Die beiden Flaechen sind reine
+   Schraegstellungen, kein 3D-Kontext: perspective/rotate3d wuerde die Schrift
+   auf schwaecheren Geraeten weichzeichnen. */
+.bb-wuerfel{
+  position:relative; box-sizing:border-box;
+  width:var(--kante); height:var(--kante); margin-top:var(--tiefe);
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:2px; padding:8px 7px;
+  background:linear-gradient(180deg,
+    color-mix(in srgb, var(--f) 88%, #fff), var(--f));
+  color:#fff; border-radius:2px;
+  /* ⚠️ KEIN overflow:hidden - es schnitte Deckel und Seitenflaeche ab. Der
+     Fuellbalken unten ist deshalb selbst abgerundet und beschnitten. */
+  overflow:visible;
+}
+/* Deckel: um --tiefe nach oben versetzt, die Oberkante wandert beim Scheren um
+   genau --tiefe nach rechts - dort trifft sie die Oberkante der Seitenflaeche. */
+.bb-wuerfel::before{
+  content:""; position:absolute; left:0; top:calc(-1 * var(--tiefe));
+  width:100%; height:var(--tiefe);
+  background:color-mix(in srgb, var(--f) 68%, #fff);
+  transform:skewX(-45deg); transform-origin:bottom left;
+}
+/* Seite: um --tiefe nach rechts versetzt, die rechte Kante wandert um --tiefe
+   nach oben. Dunkler, weil das Licht von links oben kommt. */
+.bb-wuerfel::after{
+  content:""; position:absolute; top:0; right:calc(-1 * var(--tiefe));
+  width:var(--tiefe); height:100%;
+  background:color-mix(in srgb, var(--f) 58%, #000);
+  transform:skewY(-45deg); transform-origin:left top;
+}
+.bb-rate{
+  font-size:1rem; font-weight:700; line-height:1.15; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums; text-align:center;
+}
+.bb-spanne,.bb-txs,.bb-mb{
+  font-style:normal; font-size:.62rem; line-height:1.3; text-align:center;
+  color:rgba(255,255,255,.82); font-variant-numeric:tabular-nums;
+  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.bb-spanne{margin-bottom:2px}
+
+/* Wie voll der Block ist - bei bestaetigten Bloecken in Gewichtseinheiten, bei
+   projizierten in virtuellen Bytes. Ein Strich statt einer Zahl: den Vergleich
+   ueber die ganze Reihe sieht das Auge schneller, als es Zahlen liest. */
+.bb-fuell{
+  position:absolute; left:0; right:0; bottom:0; height:3px;
+  background:rgba(0,0,0,.25); overflow:hidden; border-radius:0 0 2px 2px;
+}
+.bb-fuell i{
+  display:block; height:100%; width:0; background:rgba(255,255,255,.8);
+  transition:width .5s ease;
+}
+
+/* Unter dem Wuerfel: Hoehe und Alter. Die Hoehe ist im Original ein Link und
+   traegt deshalb die Akzentfarbe. */
+.bb-unten{
+  width:var(--kante); display:flex; flex-direction:column; align-items:center;
+  gap:1px; margin-top:8px; text-align:center;
+  /* Feste Mindesthoehe, damit die leeren Platzhalter genauso hoch sind wie
+     die spaeter gefuellten Wuerfel - sonst springt beim ersten Eintreffen der
+     Zahlen die halbe Seite. */
+  min-height:2.4em;
+}
+/* Bestaetigte Bloecke tragen die Grundgestalt: gefuellte Flaeche, weisse
+   Schrift. Hier steht nur, was sie von den beiden anderen Sorten trennt. */
+.bb-w-block .bb-wuerfel{color:#fff}
+/* Die Blockhoehe ist eine Kennung, kein Fliesstext - sie bekommt deshalb den
+   Zahlen-/Hash-Stapel des Originals. Die Gebuehrenzeilen im Wuerfel bleiben im
+   Flaechentext, genau wie drueben. */
+.bb-hoehe{
+  font-family:SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",
+    "Courier New",monospace;
+  font-size:.72rem; font-weight:700; letter-spacing:-.02em;
+  color:var(--bb-akzent); font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.bb-alter{
+  font-style:normal; font-size:.67rem; color:var(--bb-gedaempft);
+  white-space:nowrap; min-height:1em;
+}
+
+/* Anklickbar - aber nur, wenn wirklich ein Ziel gesetzt ist. Ein toter Link
+   ist der erste Klick eines jeden Pruefers. */
+.bb-w[href]{cursor:pointer}
+.bb-w[href]:hover .bb-wuerfel{filter:brightness(1.12)}
+.bb-w[href]:hover .bb-hoehe{text-decoration:underline}
+.bb-w[href]:focus-visible{outline:none}
+.bb-w[href]:focus-visible .bb-wuerfel{
+  box-shadow:0 0 0 3px var(--bb-grund), 0 0 0 5px var(--bb-akzent);
+}
+
+/* --- projizierte Bloecke ------------------------------------------------- */
+/* Im Original umrandet statt gefuellt: sie sind noch nicht geschehen. Der
+   Farbton ist derselbe wie bei den bestaetigten Bloecken - dieselbe Gebuehr
+   ergibt ueber das ganze Band dieselbe Farbe, sonst vergleicht das Auge
+   Aepfel mit Birnen. */
+.bb-w-proj .bb-wuerfel{
+  background:color-mix(in srgb, var(--f) 18%, transparent);
+  color:var(--bb-tinte);
+  outline:2px solid var(--f); outline-offset:-2px;
+}
+.bb-w-proj .bb-wuerfel::before{
+  background:color-mix(in srgb, var(--f) 34%, transparent);
+}
+.bb-w-proj .bb-wuerfel::after{
+  background:color-mix(in srgb, var(--f) 12%, transparent);
+}
+.bb-w-proj .bb-rate{color:var(--f)}
+.bb-w-proj .bb-spanne,.bb-w-proj .bb-txs,.bb-w-proj .bb-mb{
+  color:var(--bb-gedaempft);
+}
+.bb-w-proj .bb-fuell{background:color-mix(in srgb, var(--bb-tinte) 12%, transparent)}
+.bb-w-proj .bb-fuell i{background:var(--f)}
+.bb-w-proj .bb-hoehe{color:var(--bb-tinte); font-weight:600;
+  font-family:inherit; letter-spacing:0}
+/* Der naechste Block steht ganz rechts in seiner Gruppe, an der Trennung. Er
+   ist der einzige, ueber den man jetzt noch entscheiden kann - deshalb hebt er
+   sich ab. */
+.bb-mempool .bb-w-proj:last-child .bb-wuerfel{
+  box-shadow:0 0 18px -2px color-mix(in srgb, var(--f) 60%, transparent);
+}
+
+/* --- die Warteschlange als Ersatzkachel ---------------------------------- */
+/* Nur, wenn es keine Projektion gibt (kein Gebuehrenhistogramm, kein
+   Endpunkt). Gestrichelt, damit niemand sie fuer einen kuenftigen Block haelt:
+   sie zeigt die GANZE Schlange, nicht einen Block daraus. */
+.bb-w-warte .bb-wuerfel{
+  background:transparent; color:var(--bb-tinte);
+  outline:2px dashed var(--f); outline-offset:-2px;
+}
+.bb-w-warte .bb-wuerfel::before{
+  background:color-mix(in srgb, var(--f) 26%, transparent);
+}
+.bb-w-warte .bb-wuerfel::after{
+  background:color-mix(in srgb, var(--f) 10%, transparent);
+}
+.bb-w-warte .bb-rate{color:var(--f)}
+.bb-w-warte .bb-spanne,.bb-w-warte .bb-txs,.bb-w-warte .bb-mb{
+  color:var(--bb-gedaempft);
+}
+.bb-w-warte .bb-fuell{background:color-mix(in srgb, var(--bb-tinte) 12%, transparent)}
+.bb-w-warte .bb-fuell i{background:var(--f)}
+.bb-w-warte .bb-hoehe{color:var(--bb-tinte); font-weight:600;
+  font-family:inherit; letter-spacing:0}
+
+/* Platzhalter beim ersten Laden - damit beim Eintreffen der Zahlen nichts
+   springt. */
+.bb-platz{background:var(--bb-flaeche); opacity:.45}
+.bb-platz::before{background:color-mix(in srgb, var(--bb-flaeche) 65%, #fff)}
+.bb-platz::after{background:color-mix(in srgb, var(--bb-flaeche) 60%, #000)}
+
+/* --- Leiste unter dem Band ----------------------------------------------- */
+.bb-leiste{
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  flex-wrap:wrap; margin:9px 2px 0; font-size:.68rem;
+  color:var(--bb-gedaempft);
+}
+.bb-skala{display:flex; align-items:center; gap:7px}
+.bb-skala b{font-weight:500}
+.bb-skala i{
+  display:block; width:88px; height:6px; border-radius:3px;
+  background:linear-gradient(90deg,var(--bb-s0),var(--bb-s1),var(--bb-s2),
+    var(--bb-s3),var(--bb-s4),var(--bb-s5));
+}
+.bb-lage{text-align:right; flex:1 1 auto; min-width:0}
+.bb-noscript{margin:9px 2px 0; font-size:.72rem; color:var(--bb-gedaempft)}
+
+/* Antwortet der Knoten nicht mehr, bleiben die zuletzt gemessenen Zahlen
+   stehen - aber grau. Sie sind echt, nur nicht mehr frisch. */
+.bb-weg .bb-gleis{filter:grayscale(1); opacity:.5}
+
+/* --- Bewegung ------------------------------------------------------------ */
+/* Der neue Block waechst von der Breite null auf seine volle Breite und
+   schiebt sich dabei ein Stueck von links herein. Alle Wagen rechts davon
+   ruecken dadurch nach - ganz ohne Messung, ohne Transform am Gleis und ohne
+   dass die Bildlaufposition springt. */
+@keyframes bb-rein{
+  from{width:0; opacity:0; transform:translateX(-16px)}
+  to{width:calc(var(--kante) + var(--luecke)); opacity:1; transform:none}
+}
+@keyframes bb-blitz{
+  0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--f) 85%, transparent)}
+  40%{box-shadow:0 0 24px 5px color-mix(in srgb, var(--f) 55%, transparent)}
+  100%{box-shadow:0 0 0 0 transparent}
+}
+.bb-neu{animation:bb-rein .55s cubic-bezier(.2,.8,.2,1)}
+.bb-neu .bb-wuerfel{animation:bb-blitz 1.4s ease-out}
+/* Der aelteste Block faellt nicht weg, er schrumpft - dadurch ruecken die
+   anderen sichtbar nach rechts. */
+.bb-raus{
+  width:0; opacity:0;
+  transition:width .5s ease, opacity .3s ease;
+}
+
+@media (prefers-reduced-motion: reduce){
+  /* Nichts bewegt sich, alles wechselt. Die Zahlen bleiben dieselben. */
+  .bb-w,.bb-neu,.bb-neu .bb-wuerfel,.bb-raus,.bb-fuell i,.bb-wuerfel{
+    animation:none !important; transition:none !important;
+  }
+  .bb-w[href]:hover .bb-wuerfel{filter:none}
+}
+
+/* --- schmale Geraete ------------------------------------------------------ */
+@media (max-width:640px){
+  .bb{--kante:88px; --tiefe:12px; --luecke:18px; margin:0 -22px 22px}
+  .bb-rahmen{padding:calc(var(--tiefe) + 7px) 14px 12px; border-radius:0;
+    border-left:none; border-right:none}
+  .bb-rate{font-size:.9rem}
+  .bb-spanne,.bb-txs,.bb-mb{font-size:.58rem}
+  .bb-skala i{width:62px}
+}

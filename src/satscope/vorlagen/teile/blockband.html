@@ -1,0 +1,135 @@
+{#
+  DAS BLOCKBAND - das Erkennungszeichen von mempool.space. Einbinden mit
+
+      {% include "teile/blockband.html" %}
+
+  Der Teil braucht NICHTS aus dem Zusammenhang ausser `t` - kein Handler muss
+  etwas vorbereiten, das Band holt seine Zahlen selbst. Freiwillig, mit
+  {% with %} oder {% set %} zu setzen:
+
+    blockziel       Praefix fuer den Klick, Vorgabe "/block/". Auf "" setzen,
+                    solange es die Blockseite nicht gibt - dann sind die
+                    Wuerfel ansehnlich, aber nicht klickbar (ein toter Link ist
+                    der erste Klick eines jeden Pruefers).
+    kette_url       woher die bestaetigten Bloecke kommen, Vorgabe /api/kette.
+    projektion_url  woher die KUENFTIGEN Bloecke kommen, Vorgabe
+                    /api/projektion. Auf "" setzen, solange es den Endpunkt
+                    nicht gibt - dann zeigt das Band links statt der
+                    projizierten Wuerfel EINE gestrichelte Kachel fuer die
+                    ganze Warteschlange, gebaut aus Zahlen, die /api/kette
+                    ohnehin liefert. Bleibt der Endpunkt hier stehen und
+                    antwortet nicht, hoert das JavaScript nach drei
+                    Fehlschlaegen von selbst auf zu fragen.
+
+  ⚠️ ALLE sichtbaren Texte stehen im Katalog, auch die des JavaScripts: sie
+  reisen in data-texte mit. Im JavaScript darf kein einziger deutscher oder
+  englischer Satz stehen, sonst bricht die Zweisprachigkeit genau dort, wo sie
+  niemand nachprueft. Links steht der JS-Name, rechts der Katalogschluessel -
+  beide muessen sich nicht gleichen.
+
+  ⚠️⚠️ t.roh() liefert die Vorlage MIT ihren Platzhaltern; das JavaScript setzt
+  die Zahl selbst ein, weil sie dort im Sekundentakt weiterlaeuft. t.t() wuerde
+  hier "!chain.age_min ohne 'n'!" ergeben.
+#}
+{% set band_texte = {
+  "fehlt":         t.t("value.missing"),
+  "keine":         t.t("chain.nodata"),
+  "jetzt":         t.t("chain.age_now"),
+  "sek":           t.roh("chain.age_sec"),
+  "min":           t.roh("chain.age_min"),
+  "std":           t.roh("chain.age_hour"),
+  "txs":           t.roh("chain.txs"),
+  "mb":            t.roh("chain.megabytes"),
+  "spanne":        t.roh("chain.fee_range"),
+  "rate":          t.roh("band.rate"),
+  "voll":          t.roh("band.full"),
+  "naechster":     t.t("band.next"),
+  "weg":           t.t("band.stale"),
+  "eta":           t.roh("mempool.eta"),
+  "eintritt":      t.roh("chain.entry_fee"),
+  "warteschlange": t.t("mempool.size"),
+  "warten":        t.roh("chain.waiting_txs"),
+  "leer":          t.t("chain.mempool_empty"),
+  "rueckstau":     t.roh("chain.backlog"),
+  "rest":          t.roh("mempool.rest"),
+  "rest_ueber":    t.roh("mempool.rest.above")
+} %}
+
+{# Ein Stylesheet im Body ist erlaubt (rel="stylesheet" gilt als "body-ok").
+   So bleibt der Teil in sich geschlossen und grundlage.html muss nichts von
+   ihm wissen. Wer es lieber im Kopf haette, verschiebt diese Zeile dorthin. #}
+<link rel="stylesheet" href="/statisch/blockband.css">
+
+<section class="bb" id="blockband"
+         aria-label="{{ t.t('chain.title') }}"
+         data-quelle="{{ kette_url|default('/api/kette') }}"
+         data-projektion="{{ projektion_url|default('/api/projektion') }}"
+         data-blockziel="{{ blockziel|default('/block/') }}"
+         data-texte='{{ band_texte|tojson }}'>
+
+  {# Der Rahmen rollt waagerecht. Er ist auch der Grund, warum unter dem Band
+     nur eine Zeile steht und keine Sprechblase im Band: overflow-x schneidet
+     jede Sprechblase ab, die aus ihm herausragt. #}
+  <div class="bb-rahmen" id="bb-rahmen">
+    <div class="bb-gleis">
+
+      {# LINKS: die kuenftigen Bloecke. Der naechste steht ganz rechts in
+         dieser Gruppe, direkt an der Trennung. #}
+      <div class="bb-gruppe bb-mempool" id="bb-mempool"></div>
+
+      {# Die Gegenwart. Gestrichelt, weil die Grenze staendig wandert. #}
+      <div class="bb-trenner" id="bb-trenner" aria-hidden="true"><i></i></div>
+
+      {# RECHTS: die bestaetigten Bloecke, der neueste links an der Trennung.
+         Die Platzhalter verhindern, dass beim ersten Eintreffen der Zahlen
+         die halbe Seite springt. Ihre Anzahl ist Kulisse, nicht Aussage - sie
+         muss kette.ANZAHL nicht treffen. #}
+      <div class="bb-gruppe bb-bloecke" id="bb-bloecke">
+        {% for _ in range(6) %}
+        <span class="bb-w" aria-hidden="true">
+          <span class="bb-wuerfel bb-platz"></span>
+          <span class="bb-unten"></span>
+        </span>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+
+  <p class="bb-leiste">
+    {# Die Farbskala erklaert sich sonst nicht: dass Blau billig und Rot teuer
+       heisst, weiss nur, wer mempool.space schon kennt. #}
+    <span class="bb-skala" aria-hidden="true">
+      <b>{{ t.t("chain.cheap") }}</b><i></i><b>{{ t.t("chain.dear") }}</b>
+    </span>
+    {# Was nicht mehr in die Reihe passt, und die Ausfallmeldung. #}
+    <span class="bb-lage" id="bb-lage" aria-live="polite"></span>
+  </p>
+
+  <noscript><p class="bb-noscript">{{ t.t("chain.needs_js") }}</p></noscript>
+
+  {# Muster fuer einen Wuerfel - EIN Muster fuer alle drei Sorten (bestaetigt,
+     projiziert, Warteschlange), sie unterscheiden sich nur in der Klasse am
+     Wagen. Ein <template> statt innerHTML im JavaScript: kein Wert wird je als
+     HTML eingesetzt, immer nur als textContent.
+     Der Wagen ist ein <a> ohne href, solange kein Ziel gesetzt ist - dann ist
+     er weder anklickbar noch mit der Tastatur erreichbar, und das ist richtig
+     so: einen kuenftigen Block gibt es noch nicht zum Nachschlagen. #}
+  <template id="bb-muster">
+    <a class="bb-w">
+      <span class="bb-wuerfel">
+        <b class="bb-rate"></b>
+        <i class="bb-spanne"></i>
+        <i class="bb-txs"></i>
+        <i class="bb-mb"></i>
+        <span class="bb-fuell"><i></i></span>
+      </span>
+      <span class="bb-unten">
+        <b class="bb-hoehe"></b>
+        <i class="bb-alter"></i>
+      </span>
+    </a>
+  </template>
+</section>
+
+<script src="/statisch/blockband.js" defer></script>

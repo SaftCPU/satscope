@@ -1,0 +1,247 @@
+/* --- Der fuenfte Kasten: was ein Explorer im Internet nicht kann -----------
+
+   Alle Klassen tragen den Vorsatz "mw-", damit sie sich mit nichts beissen:
+   satscope.css, blockkette.css und feinschliff.css gehoeren anderen Bausteinen,
+   an denen gleichzeitig gearbeitet wird.
+
+   FARBEN. Das dunkle Thema ist das Original von mempool.space, Wert fuer Wert:
+   #11131f Seitengrund, #272f4e Flaechen, #007cfa Blau, #00ddff Cyan,
+   #0aab2f Gruen, #dc3545 Rot, #ffc107 Bernstein, #f7931a Bitcoin-Orange,
+   #fff Text, #6c757d gedaempft, #adb5bd hell gedaempft, #212529 tiefe Flaeche.
+   Das Original kennt NUR dunkel. Das helle Thema ist daraus abgeleitet und
+   traegt denselben Aufbau: dieselben Rollen, dieselben Klassen, nur die
+   Helligkeit gespiegelt - aus dem Seitengrund #11131f wird die Schriftfarbe,
+   die Akzente werden so weit abgedunkelt, dass sie auf Weiss lesbar bleiben
+   (#007cfa auf Weiss ist es nicht).
+
+   Eigene Marken (--mw-*) statt der Themenvariablen aus satscope.css: die
+   gehoeren einem anderen Baustein, und dieser Kasten soll auch dann in den
+   Originalfarben stehen, wenn dort gerade jemand die Palette umbaut.
+
+   Die Farben werden IMMER vollstaendig auf blankem :root gesetzt und in den
+   beiden dunklen Bloecken nur ueberschrieben - eine Farbe, die es nur in einer
+   Medienabfrage gibt, fehlt in der dritten Themenstellung ("System").
+   -------------------------------------------------------------------------- */
+
+:root{
+  /* Schriften woertlich aus dem Original - der Wiedererkennungswert steckt
+     zur Haelfte in ihnen. */
+  --mw-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+    "Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif;
+  --mw-mono:SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",
+    "Courier New",monospace;
+
+  /* Helles Thema: aus den Werten oben abgeleitet. */
+  --mw-grund:#f4f5fa;
+  --mw-flaeche:#ffffff;
+  --mw-tief:#eceff7;
+  --mw-linie:#d9deed;
+  --mw-tinte:#11131f;
+  --mw-gedaempft:#5b6270;
+  --mw-hell:#7b8493;
+  --mw-blau:#0062c9;
+  --mw-cyan:#0a7e97;
+  --mw-gruen:#0a8f28;
+  --mw-rot:#c1121f;
+  --mw-bernstein:#8a6100;
+  --mw-orange:#b76a0b;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --mw-grund:#11131f;
+    --mw-flaeche:#272f4e;
+    --mw-tief:#212529;
+    --mw-linie:#323b5e;
+    --mw-tinte:#fff;
+    --mw-gedaempft:#6c757d;
+    --mw-hell:#adb5bd;
+    --mw-blau:#007cfa;
+    --mw-cyan:#00ddff;
+    --mw-gruen:#0aab2f;
+    --mw-rot:#dc3545;
+    --mw-bernstein:#ffc107;
+    --mw-orange:#f7931a;
+  }
+}
+:root[data-theme="dark"]{
+  --mw-grund:#11131f;
+  --mw-flaeche:#272f4e;
+  --mw-tief:#212529;
+  --mw-linie:#323b5e;
+  --mw-tinte:#fff;
+  --mw-gedaempft:#6c757d;
+  --mw-hell:#adb5bd;
+  --mw-blau:#007cfa;
+  --mw-cyan:#00ddff;
+  --mw-gruen:#0aab2f;
+  --mw-rot:#dc3545;
+  --mw-bernstein:#ffc107;
+  --mw-orange:#f7931a;
+}
+
+/* --- Der Kasten selbst ---------------------------------------------------
+   Ohne eigenen Hintergrund: die Kacheln tragen die Flaeche, und so sitzt der
+   Kasten auf jedem Seitengrund richtig - dunkel wie hell. */
+.mw{font-family:var(--mw-sans); color:var(--mw-tinte); margin:22px 0 0}
+.mw-kopf{margin:0 0 12px}
+.mw-titel{font-size:1.02rem; font-weight:700; letter-spacing:-.01em; margin:0}
+.mw-unter{font-size:.82rem; color:var(--mw-gedaempft); margin:3px 0 0;
+  text-wrap:pretty}
+.mw-warnung{font-size:.82rem; margin:0 0 12px; padding:9px 13px;
+  border:1px solid var(--mw-rot); border-left-width:3px; border-radius:6px;
+  background:var(--mw-flaeche); color:var(--mw-tinte)}
+
+/* Automatische Spalten: der Kasten weiss nicht, wie breit die Seite ist -
+   sie wird gerade umgebaut. auto-fit passt sich an, ohne dass hier eine
+   Breite behauptet wird, die es morgen nicht mehr gibt. */
+.mw-gitter{display:grid; gap:10px;
+  grid-template-columns:repeat(auto-fit, minmax(230px, 1fr))}
+/* Das Balkenband braucht die volle Breite - acht Paare in einer Spalte von
+   230 px waeren Streichhoelzer. */
+.mw-breit{grid-column:1 / -1}
+
+.mw-feld{background:var(--mw-flaeche); border:1px solid var(--mw-linie);
+  border-radius:8px; padding:13px 15px 14px; min-width:0}
+.mw-feldtitel{display:flex; align-items:baseline; justify-content:space-between;
+  gap:8px; font-size:.7rem; font-weight:700; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--mw-hell); margin:0 0 11px}
+/* Die gemessene Wartezeit der Quelle. Sie steht bewusst klein daneben: sie
+   ist ein Beleg, keine Nachricht. */
+.mw-ms{font-family:var(--mw-mono); font-size:.66rem; font-weight:400;
+  letter-spacing:0; text-transform:none; color:var(--mw-gedaempft);
+  white-space:nowrap}
+
+/* --- Textbausteine ------------------------------------------------------- */
+.mw-marke{font-size:.76rem; color:var(--mw-gedaempft); min-width:0;
+  overflow:hidden; text-overflow:ellipsis}
+.mw-marke-klein{font-size:.68rem; color:var(--mw-gedaempft);
+  font-variant-numeric:tabular-nums}
+.mw-wert{font-family:var(--mw-mono); font-size:.86rem; font-weight:600;
+  font-variant-numeric:tabular-nums; white-space:nowrap}
+.mw-wert em{font-style:normal; font-size:.62rem; font-weight:600;
+  color:var(--mw-gedaempft); margin-left:4px; letter-spacing:.03em}
+.mw-gross{font-family:var(--mw-mono); font-size:1.24rem; font-weight:700;
+  letter-spacing:-.02em; line-height:1.15; font-variant-numeric:tabular-nums;
+  margin:0}
+.mw-mitte{text-align:center}
+.mw-fussnote{font-size:.7rem; line-height:1.45; color:var(--mw-gedaempft);
+  margin:8px 0 0; text-wrap:pretty}
+.mw-zeile{display:flex; align-items:baseline; justify-content:space-between;
+  gap:10px; margin-top:9px}
+.mw-zeile:first-of-type{margin-top:0}
+
+/* --- Zustaende: eine Farbe, ein Punkt, ein Satz -------------------------- */
+.mw-gut{color:var(--mw-gruen)}
+.mw-warn{color:var(--mw-bernstein)}
+.mw-schlecht{color:var(--mw-rot)}
+.mw-neutral{color:var(--mw-gedaempft)}
+.mw-stand{display:flex; align-items:flex-start; gap:7px; font-size:.76rem;
+  line-height:1.4; margin:10px 0 0; text-wrap:pretty}
+.mw-punkt{flex:none; width:8px; height:8px; border-radius:50%;
+  background:currentColor; margin-top:.42em}
+
+/* --- 1 Knoten gegen Index ------------------------------------------------
+   Zwei Zahlen und der Abstand dazwischen. Der Abstand ist der eigentliche
+   Messwert, deshalb steht er in der Mitte und traegt die Farbe. */
+.mw-gegen{display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+  gap:8px}
+.mw-gegen-seite{display:flex; flex-direction:column; gap:2px; min-width:0}
+.mw-gegen-seite .mw-marke{font-size:.68rem}
+.mw-gegen-mitte{font-family:var(--mw-mono); font-size:.82rem; font-weight:700;
+  padding:2px 8px; border-radius:20px; white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+  background:color-mix(in srgb, currentColor 14%, transparent)}
+
+/* --- 2 Balken waagerecht ------------------------------------------------- */
+.mw-schiene{display:block; height:8px; border-radius:4px;
+  background:var(--mw-tief); border:1px solid var(--mw-linie);
+  overflow:hidden; margin:5px 0 2px}
+.mw-fuell{display:block; height:100%; border-radius:4px;
+  transform-origin:left center}
+.mw-blau{background:var(--mw-blau)}
+.mw-cyan{background:var(--mw-cyan)}
+.mw-abstand{font-family:var(--mw-mono); font-size:.72rem; margin:10px 0 0;
+  color:var(--mw-hell); font-variant-numeric:tabular-nums}
+
+/* Die vier Rohzahlen des Eimers. Zwei Spalten, damit die Namen ("aus dem
+   Mempool gefallen") nicht auf drei Zeilen umbrechen. */
+.mw-vier{display:grid; grid-template-columns:1fr 1fr; gap:8px 12px;
+  margin:12px 0 0}
+.mw-vier div{min-width:0}
+.mw-vier dt{font-size:.66rem; color:var(--mw-gedaempft); margin:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mw-vier dd{font-family:var(--mw-mono); font-size:.84rem; font-weight:600;
+  margin:1px 0 0; font-variant-numeric:tabular-nums}
+
+/* --- 3 Balkenpaare: Prognose gegen Wirklichkeit -------------------------- */
+.mw-legende{display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  font-size:.7rem; color:var(--mw-gedaempft); margin:0 0 10px}
+.mw-legende .mw-punkt{margin:0 0 0 6px}
+.mw-legende .mw-punkt:first-child{margin-left:0}
+.mw-soll{background:var(--mw-blau)}
+.mw-ist{background:var(--mw-cyan)}
+/* Rot heisst hier genau eine Sache: in diesen Block haette die Prognose nicht
+   hineingereicht. */
+.mw-drueber{background:var(--mw-rot)}
+
+.mw-band{display:flex; align-items:flex-end; gap:8px; overflow-x:auto;
+  padding-bottom:4px; scrollbar-width:thin}
+.mw-paar{flex:1 1 44px; min-width:38px; display:flex; flex-direction:column;
+  align-items:center; gap:5px}
+/* Fester Schacht: die Saeulenhoehen sind Prozentwerte und beziehen sich auf
+   ihn. Ohne feste Hoehe waeren 100 % die Hoehe des Inhalts - also nichts. */
+.mw-schacht{display:flex; align-items:flex-end; justify-content:center;
+  gap:3px; width:100%; height:82px; padding:0 2px;
+  border-bottom:1px solid var(--mw-linie)}
+.mw-saeule{display:block; width:100%; max-width:14px; min-height:2px;
+  border-radius:2px 2px 0 0; transform-origin:center bottom}
+
+/* Der Befund in einem Satz - die Zahl davor hat ihn schon gezeigt. */
+.mw-befund{font-size:.78rem; font-weight:600; line-height:1.4; margin:10px 0 0;
+  text-wrap:pretty}
+
+/* --- 4/5 Listen ---------------------------------------------------------- */
+.mw-liste{list-style:none; margin:10px 0 0; padding:0}
+/* Umbrechend: der Zustandstext eines Zweiges ist ein ganzer Halbsatz ("nur
+   Kopfzeilen, nie vollstaendig geprueft") und passt in einer schmalen Spalte
+   nicht neben die Zahl. Er faellt dann in die naechste Zeile, statt die
+   Hoehe daneben zu quetschen. */
+.mw-liste li{display:flex; align-items:baseline; justify-content:space-between;
+  flex-wrap:wrap; gap:2px 8px; padding:5px 0;
+  border-top:1px solid var(--mw-linie)}
+.mw-liste li:first-child{border-top:none}
+.mw-liste .mw-marke-klein{text-align:right; margin-left:auto}
+
+/* --- 5 Kein Nachhausetelefonieren ---------------------------------------- */
+.mw-symbolzeile{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+.mw-symbol{flex:none; width:34px; height:34px}
+.mw-symbol .mw-schraeg{color:var(--mw-rot); stroke:currentColor}
+.mw-zusage{font-size:.78rem; font-weight:600; line-height:1.35; margin:0;
+  text-wrap:pretty}
+/* Drei Zustaende, drei Farben. Kippt die Zusage, kippt auch das Symbol - eine
+   gruene Kugel ueber einem Widerspruch waere die schlimmste Form von
+   Beruhigung. Gefaerbt wird nur Symbol und Zusage, nicht die ganze Kachel:
+   die Zahlen darunter sind in jedem Fall dieselben Messwerte. */
+.mw-still-gut .mw-symbol{color:var(--mw-gruen)}
+.mw-still-warn .mw-symbol{color:var(--mw-bernstein)}
+.mw-still-warn .mw-zusage{color:var(--mw-bernstein)}
+.mw-still-schlecht .mw-symbol{color:var(--mw-rot)}
+.mw-still-schlecht .mw-zusage{color:var(--mw-rot)}
+
+/* --- Bewegung nur, wenn sie gewuenscht ist ------------------------------- */
+@media (prefers-reduced-motion: no-preference){
+  .mw-fuell{animation:mw-breit .55s cubic-bezier(.2,.7,.3,1) both}
+  .mw-saeule{animation:mw-hoch .45s cubic-bezier(.2,.8,.3,1) both}
+  @keyframes mw-breit{from{transform:scaleX(0)}}
+  @keyframes mw-hoch{from{transform:scaleY(0)}}
+}
+
+/* --- Schmale Geraete ------------------------------------------------------
+   Eine Spalte, kleinere Saeulen. Das Band scrollt schon von sich aus
+   waagerecht - der Seitenkoerper darf das nie. */
+@media (max-width:520px){
+  .mw-gitter{grid-template-columns:1fr}
+  .mw-schacht{height:66px}
+  .mw-gross{font-size:1.1rem}
+  .mw-feld{padding:12px 13px}
+}

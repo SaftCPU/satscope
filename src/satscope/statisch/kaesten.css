@@ -1,0 +1,266 @@
+/* Die vier Kaesten unter dem Blockband.
+
+   FARBEN. Das Vorbild kennt nur ein dunkles Thema; seine Werte stehen hier
+   unveraendert im dunklen Block (#11131f Grund, #272f4e Flaeche, #007cfa
+   Akzent, #00ddff Cyan, #0aab2f Gruen, #dc3545 Rot, #ffc107 Bernstein,
+   #f7931a Bitcoin-Orange, #adb5bd/#6c757d gedaempfter Text). Das helle Thema
+   ist daraus abgeleitet: derselbe Aufbau, dieselben Rollen, nur umgedrehte
+   Helligkeit. Satscope hat einen Umschalter, und ein Kasten, der nur im
+   Dunkeln lesbar ist, waere im Hellen ein Loch in der Seite.
+
+   ⚠️ Zwei Farben des Vorbilds sind als KLEINE Schrift nicht lesbar, gemessen
+   auf seiner eigenen Flaeche #272f4e:
+       #007cfa  3,29:1   - reicht fuer grosse Zahlen (AA ab 3:1), nicht fuer
+                           Fliesstext oder Links (AA 4,5:1)
+       #dc3545  2,90:1   - reicht fuer Raender und Punkte, nicht fuer Text
+   Deshalb gibt es je zwei Marken: --ks-balken/--ks-akzent (Flaeche gegen
+   Schrift) und --ks-warn. Die Flaechenfarben sind die des Vorbilds, die
+   Schriftfarben aufgehellt. Wer das zurueckdreht, macht die Seite huebscher
+   und unbrauchbar.
+
+   ALLE eigenen Marken tragen das Praefix --ks- und sind auf .kaesten gesetzt,
+   nicht auf :root: dieser Baustein soll nichts umfaerben, was ihm nicht
+   gehoert, und satscope.css bleibt die einzige Stelle fuer die Grundfarben.
+
+   Dreiblock wie ueberall im Projekt: blanker Grundfall (hell), Medienabfrage
+   (schuetzt sich mit :not([data-theme="light"]) vor der ausdruecklichen Wahl),
+   und zuletzt [data-theme="dark"], damit der Umschalter in BEIDE Richtungen
+   gewinnt. */
+
+.kaesten{
+  --ks-flaeche:#fff;
+  --ks-flaeche2:#f3f5fa;      /* innere Kachel, Tabellenzeile beim Ueberfahren */
+  --ks-spur:#e8ebf3;          /* die leere Rinne eines Balkens */
+  --ks-linie:#e3e7f1;
+  --ks-tinte:#16151c;
+  --ks-gedaempft:#5a6172;
+  --ks-schwach:#858da0;
+  --ks-akzent:#0a58ca;        /* Schrift und Links */
+  --ks-balken:#007cfa;        /* Flaeche, nie Schrift */
+  --ks-cyan:#0b7285;
+  --ks-gut:#157347;
+  --ks-bernstein:#8a6100;
+  --ks-orange:#b26a00;        /* Bitcoin-Orange, als Schrift abgedunkelt */
+  --ks-warn:#b02a37;
+  --ks-schatten:0 1px 2px rgba(16,21,40,.06);
+  --ks-schrift:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+    "Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif;
+  --ks-mono:SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",
+    "Courier New",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .kaesten{
+    --ks-flaeche:#272f4e;
+    --ks-flaeche2:#212529;
+    --ks-spur:#1b2136;
+    --ks-linie:#3a4468;
+    --ks-tinte:#fff;
+    --ks-gedaempft:#adb5bd;
+    --ks-schwach:#6c757d;
+    --ks-akzent:#5aa9ff;
+    --ks-balken:#007cfa;
+    --ks-cyan:#00ddff;
+    --ks-gut:#0aab2f;
+    --ks-bernstein:#ffc107;
+    --ks-orange:#f7931a;
+    --ks-warn:#ff7a85;
+    --ks-schatten:0 1px 2px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] .kaesten{
+  --ks-flaeche:#272f4e;
+  --ks-flaeche2:#212529;
+  --ks-spur:#1b2136;
+  --ks-linie:#3a4468;
+  --ks-tinte:#fff;
+  --ks-gedaempft:#adb5bd;
+  --ks-schwach:#6c757d;
+  --ks-akzent:#5aa9ff;
+  --ks-balken:#007cfa;
+  --ks-cyan:#00ddff;
+  --ks-gut:#0aab2f;
+  --ks-bernstein:#ffc107;
+  --ks-orange:#f7931a;
+  --ks-warn:#ff7a85;
+  --ks-schatten:0 1px 2px rgba(0,0,0,.35);
+}
+
+/* --------------------------------------------------------------- Raster */
+.kaesten{
+  display:grid; gap:14px; grid-template-columns:1fr;
+  margin:26px 0 0; font-family:var(--ks-schrift);
+}
+/* Zwei nebeneinander, sobald zwei Spalten ueberhaupt Sinn ergeben. Vier
+   nebeneinander gibt es bewusst NICHT: die Blocktabelle braucht Breite, und
+   vier 280-px-Spalten sind vier Kaesten, die alle zu eng sind. */
+@media (min-width:640px){
+  .kaesten{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* ⚠️ AUSBRUCH AUS DER SCHMALEN SPALTE.
+   satscope.css deckelt .inhalt auf 560 px - fuer eine Suche und ein Band ist
+   das richtig, fuer vier Kaesten nebeneinander zu wenig. Die Datei darf hier
+   nicht angefasst werden, also rueckt der Block sich selbst in die Mitte des
+   Fensters. Erst ab 1000 px, damit auf kleinen Schirmen gar keine
+   Verschiebung stattfindet, und mit calc(100vw - 40px): 100vw enthaelt die
+   Bildlaufleiste, die 40 px Luft fangen sie ab, sonst entstuende genau die
+   waagerechte Bildlaufleiste, die es hier nie geben darf.
+   Wird .inhalt spaeter breiter gesetzt, ist dieser Block ersatzlos zu
+   streichen - er ist eine Kruecke, keine Gestaltung. */
+@media (min-width:1000px){
+  .kaesten{
+    width:min(1180px, calc(100vw - 40px));
+    margin-left:50%; transform:translateX(-50%);
+  }
+}
+
+/* ----------------------------------------------------------- ein Kasten */
+.ks{
+  display:flex; flex-direction:column; gap:10px; min-width:0;
+  padding:15px 17px 16px; border-radius:12px;
+  background:var(--ks-flaeche); border:1px solid var(--ks-linie);
+  box-shadow:var(--ks-schatten); color:var(--ks-tinte);
+}
+.ks-kopf{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.ks-titel{margin:0; font-size:.95rem; font-weight:700; letter-spacing:-.015em}
+.ks-unter{margin:-6px 0 0; font-size:.72rem; color:var(--ks-schwach); text-wrap:pretty}
+.ks-mehr{flex:none; font-size:.74rem; color:var(--ks-akzent); text-decoration:none}
+.ks-mehr:hover{text-decoration:underline}
+.ks-note{margin:auto 0 0; font-size:.72rem; color:var(--ks-gedaempft); text-wrap:pretty}
+.ks-fein{margin:0; font-size:.66rem; color:var(--ks-schwach); text-wrap:pretty}
+.ks-leer{margin:0; font-size:.75rem; color:var(--ks-gedaempft); text-wrap:pretty}
+.ks-warnung{
+  margin:0; font-size:.72rem; color:var(--ks-warn); text-wrap:pretty;
+  border-left:2px solid var(--ks-warn); padding-left:8px;
+}
+
+/* -------------------------------------------- 1. Kasten: Gebuehrenstufen */
+/* Vier Kacheln nebeneinander brauchen Breite. Im zweispaltigen Raster einer
+   schmalen Spalte bekommt der Gebuehrenkasten deshalb die ganze Zeile - sonst
+   stehen seine Kacheln zu zweit uebereinander, waehrend daneben Platz frei
+   bleibt. Ab 1000 px ist eine halbe Zeile breit genug (siehe Ausbruch oben),
+   dort gilt die Regel nicht mehr. */
+@media (min-width:640px) and (max-width:999px){
+  .ks-geb{grid-column:1 / -1}
+}
+.ks-stufen{display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:8px}
+.ks-stufe{
+  display:flex; flex-direction:column; gap:2px; min-width:0;
+  padding:10px 8px 9px; border-radius:9px; text-align:center;
+  background:var(--ks-flaeche2); border:1px solid var(--ks-linie);
+}
+.ks-stufe-name{font-size:.67rem; font-weight:600; color:var(--ks-gedaempft);
+  overflow:hidden; text-overflow:ellipsis}
+.ks-wert{
+  font-family:var(--ks-mono); font-size:1.3rem; font-weight:700; line-height:1.15;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em; color:var(--ks-tinte);
+}
+.ks-einheit{
+  display:block; font-family:var(--ks-schrift); font-style:normal;
+  font-size:.58rem; font-weight:600; letter-spacing:.07em;
+  color:var(--ks-schwach); margin-top:1px;
+}
+.ks-ziel{font-size:.65rem; color:var(--ks-schwach)}
+.ks-kosten{font-size:.63rem; color:var(--ks-schwach); font-variant-numeric:tabular-nums}
+/* Die Faerbung folgt dem Preis, nicht der Wichtigkeit: billig gruen, teuer
+   orange - dieselbe Leserichtung wie die Skala des Bandes darueber. */
+.ks-stufe[data-ziel="boden"] .ks-wert{color:var(--ks-schwach)}
+.ks-stufe[data-ziel="6"] .ks-wert{color:var(--ks-gut)}
+.ks-stufe[data-ziel="3"] .ks-wert{color:var(--ks-bernstein)}
+.ks-stufe[data-ziel="1"] .ks-wert{color:var(--ks-orange)}
+
+/* --------------------------------- 2. und 4. Kasten: Zaehler mit Balken */
+.ks-kopfzahl{
+  font-family:var(--ks-mono); font-size:1.9rem; font-weight:700; line-height:1.05;
+  letter-spacing:-.035em; font-variant-numeric:tabular-nums;
+  color:var(--ks-akzent);
+}
+/* ⚠️ Die Richtung der Schwierigkeit wird NICHT gruen oder rot gefaerbt:
+   steigende Schwierigkeit heisst "es wurde schneller gemined", fallende
+   "langsamer" - beides ist weder gut noch schlecht, sondern genau der
+   Regelkreis, der Bitcoin bei zehn Minuten haelt. */
+.ks-kopfzahl[data-richtung="unbekannt"]{color:var(--ks-schwach)}
+.ks-kopfzahl[data-richtung="halbierung"]{color:var(--ks-cyan)}
+.ks-satz{margin:-6px 0 0; font-size:.74rem; color:var(--ks-gedaempft); text-wrap:pretty}
+
+.ks-balken{
+  height:6px; border-radius:3px; background:var(--ks-spur); overflow:hidden;
+}
+.ks-balken > i{
+  display:block; height:100%; min-width:2px; border-radius:inherit;
+  background:var(--ks-balken);
+}
+
+/* In den beiden Zaehlerkaesten bilden Paare und Fusszeile einen Block, der am
+   Boden klebt. Damit liegen die Balken der Karten nebeneinander auf einer
+   Linie, auch wenn der Satz darueber in einer Sprache umbricht und in der
+   anderen nicht. */
+.ks-anp .ks-paare,.ks-halb .ks-paare{margin-top:auto}
+.ks-anp .ks-note,.ks-halb .ks-note{margin-top:8px}
+
+.ks-paare{display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:0 16px; margin:0}
+.ks-paar{
+  display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  padding:6px 0; border-top:1px solid var(--ks-linie); min-width:0;
+}
+.ks-paar dt{font-size:.71rem; color:var(--ks-gedaempft); min-width:0;
+  overflow:hidden; text-overflow:ellipsis}
+.ks-paar dd{
+  margin:0; font-family:var(--ks-mono); font-size:.82rem; font-weight:600;
+  font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right;
+}
+.ks-von{font-family:var(--ks-schrift); font-size:.66rem; font-weight:500;
+  color:var(--ks-schwach); margin-left:4px}
+
+/* ------------------------------------------ 3. Kasten: Tabelle der Bloecke */
+/* Breite Inhalte rollen in IHREM eigenen Kasten - der Seitenkoerper darf nie
+   waagerecht rollen. */
+/* Die letzte Tabellenzeile traegt ihren Abstand selbst - der Kasten braucht
+   unten deshalb weniger Innenmass als die anderen drei. */
+.ks-blocks{padding-bottom:11px}
+.ks-rolle{overflow-x:auto; margin:0 -2px}
+.ks-tabelle{width:100%; border-collapse:collapse; font-size:.8rem}
+.ks-tabelle th{
+  text-align:left; padding:0 10px 6px 0; font-size:.63rem; font-weight:600;
+  letter-spacing:.07em; text-transform:uppercase; color:var(--ks-schwach);
+  border-bottom:1px solid var(--ks-linie); white-space:nowrap;
+}
+.ks-tabelle td{
+  padding:7px 10px 7px 0; border-bottom:1px solid var(--ks-linie);
+  vertical-align:top;
+}
+.ks-tabelle tr:last-child td{border-bottom:none}
+.ks-tabelle th.ks-r,.ks-tabelle td.ks-r{text-align:right; padding-right:0}
+.ks-tabelle td.ks-r{font-family:var(--ks-mono); font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.ks-tabelle tbody tr:hover{background:var(--ks-flaeche2)}
+.ks-hoehe{
+  font-family:var(--ks-mono); font-weight:700; color:var(--ks-akzent);
+  text-decoration:none; font-variant-numeric:tabular-nums;
+}
+.ks-hoehe:hover{text-decoration:underline}
+.ks-hoehe:focus-visible{outline:2px solid var(--ks-akzent); outline-offset:2px;
+  border-radius:3px}
+.ks-zeit{font-family:var(--ks-mono); font-size:.76rem; color:var(--ks-gedaempft);
+  white-space:nowrap}
+/* Der Fuellstand steht UNTER der Groesse und nicht in einer eigenen Spalte:
+   er ist dieselbe Auskunft in anderer Form. */
+.ks-tabelle .ks-balken{height:4px; margin-top:5px}
+
+/* -------------------------------------------------------------- Bewegung */
+/* Nur wer keine Ruhe verlangt hat, bekommt die Uebergaenge. Die Balken sind
+   serverseitig gesetzt und wachsen beim Laden EINMAL - fuer manche Menschen
+   ist genau das ein Problem. */
+@media (prefers-reduced-motion: no-preference){
+  .ks-balken > i{transition:width .4s ease}
+  .ks-tabelle tbody tr{transition:background .15s ease}
+}
+
+/* -------------------------------------------------------------- Enge */
+@media (max-width:400px){
+  .ks{padding:13px 13px 14px}
+  .ks-paare{grid-template-columns:1fr}
+  .ks-kopfzahl{font-size:1.65rem}
+  .ks-wert{font-size:1.15rem}
+}

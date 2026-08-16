@@ -1,0 +1,317 @@
+{#
+  Der fuenfte Kasten: was ein oeffentlicher Explorer nicht beantworten kann.
+  Einbinden mit
+
+      {% include "teile/mehrwert.html" %}
+
+  Erwartet im Zusammenhang:
+      mw   das Ergebnis von mehrwert.seite(TOR)   (siehe mehrwert.py)
+      t    die Texte, wie ueberall
+
+  Fehlt `mw`, zeigt der Kasten GAR NICHTS statt halber Kacheln - so kann die
+  Vorlage schon eingebunden werden, bevor der Handler sie fuellt.
+
+  ⚠️ Kein sichtbarer Satz steht hier: alle Woerter kommen ueber t.t() aus dem
+  Katalog, alle Zahlen ueber t.zahl() (deutsch 1.234,56 gegen englisch
+  1,234.56). Einzige Ausnahmen sind die Methodennamen von bitcoind
+  (estimatesmartfee, estimaterawfee, getchaintips, minfeerate) - das sind
+  Eigennamen und in beiden Sprachen dieselben; man muss sie wiedererkennen, um
+  sie nachschlagen zu koennen.
+
+  ⚠️ Jeder Wert ist EINZELN abgesichert. Wo eine Zahl fehlt, steht ein Strich
+  (t.zahl liefert ihn von allein), und wo eine ganze Kachel keine Grundlage hat,
+  steht der Grund - nie eine geratene Zahl.
+#}
+{% if mw is defined and mw %}
+{# Ein Stylesheet im Body ist erlaubt (rel="stylesheet" gilt als "body-ok").
+   So bleibt der Teil in sich geschlossen und grundlage.html muss nichts von
+   ihm wissen - genau wie bei teile/blockkette.html. #}
+<link rel="stylesheet" href="/statisch/mehrwert.css">
+
+<section class="mw" aria-labelledby="mw-titel">
+  <header class="mw-kopf">
+    <h2 class="mw-titel" id="mw-titel">{{ t.t("mehrwert.title") }}</h2>
+    <p class="mw-unter">{{ t.t("mehrwert.subtitle") }}</p>
+  </header>
+
+  {% if not mw.erreichbar %}
+  <p class="mw-warnung">{{ t.t("mehrwert.knoten_weg") }}</p>
+  {% endif %}
+
+  <div class="mw-gitter">
+
+    {# ---------------------------------------------- 1 Knoten und Index einig?
+       Die einzige Zahl auf dieser Seite, die zwei Programme gegeneinander
+       haelt. Beide sehen fuer sich gesund aus - nur der Abstand verraet, dass
+       Adressabfragen gerade still unvollstaendig sind. #}
+    <article class="mw-feld">
+      <h3 class="mw-feldtitel">
+        {{ t.t("mehrwert.index.titel") }}
+        {%- if mw.index.ms is not none %}
+        <span class="mw-ms">{{ t.t("mehrwert.ms", n=t.zahl(mw.index.ms, 0)) }}</span>
+        {%- endif %}
+      </h3>
+
+      <div class="mw-gegen">
+        <div class="mw-gegen-seite">
+          <span class="mw-marke">{{ t.t("mehrwert.index.knoten") }}</span>
+          <b class="mw-gross">{{ t.zahl(mw.index.knoten) }}</b>
+        </div>
+        <span class="mw-gegen-mitte mw-{{ mw.index.klasse }}">
+          {{- t.zahl(mw.index.abstand) -}}
+        </span>
+        <div class="mw-gegen-seite">
+          <span class="mw-marke">{{ t.t("mehrwert.index.index") }}</span>
+          <b class="mw-gross">{{ t.zahl(mw.index.index) }}</b>
+        </div>
+      </div>
+
+      {# Der Satz bekommt IMMER n mit: Vorlagen ohne Platzhalter ignorieren das
+         Argument, und so muss die Vorlage nicht wissen, welcher Zustand eine
+         Zahl traegt. #}
+      <p class="mw-stand mw-{{ mw.index.klasse }}">
+        <i class="mw-punkt" aria-hidden="true"></i>
+        {{ t.t(mw.index.satz, n=t.zahl(mw.index.abstand)) }}
+      </p>
+      <p class="mw-fussnote">{{ t.t("mehrwert.index.warum") }}</p>
+    </article>
+
+    {# ------------------------------------- 2 Zwei Schaetzer nebeneinander
+       Dieselbe Frage, zwei Antworten desselben Knotens: die geglaettete und
+       die gemessene. Beide Balken an EINEM Massstab, sonst luegt das Bild. #}
+    <article class="mw-feld">
+      <h3 class="mw-feldtitel">{{ t.t("mehrwert.schaetzer.titel") }}</h3>
+
+      <div class="mw-zeile">
+        <span class="mw-marke">{{ t.t("mehrwert.schaetzer.glatt") }}</span>
+        <span class="mw-wert">{{ t.zahl(mw.schaetzer.glatt, 2) }}<em>{{ t.t("unit.satvb") }}</em></span>
+      </div>
+      <span class="mw-schiene">
+        {%- if mw.schaetzer.glatt_p is not none %}
+        <i class="mw-fuell mw-blau" style="width:{{ "%.2f"|format(mw.schaetzer.glatt_p) }}%"></i>
+        {%- endif %}
+      </span>
+
+      <div class="mw-zeile">
+        <span class="mw-marke">{{ t.t("mehrwert.schaetzer.roh") }}</span>
+        <span class="mw-wert">{{ t.zahl(mw.schaetzer.roh, 2) }}<em>{{ t.t("unit.satvb") }}</em></span>
+      </div>
+      <span class="mw-schiene">
+        {%- if mw.schaetzer.roh_p is not none %}
+        <i class="mw-fuell mw-cyan" style="width:{{ "%.2f"|format(mw.schaetzer.roh_p) }}%"></i>
+        {%- endif %}
+      </span>
+
+      {% if mw.schaetzer.abweichung_p is not none %}
+      <p class="mw-abstand">
+        {{- t.t("mehrwert.schaetzer.abstand", p=t.zahl(mw.schaetzer.abweichung_p, 0)) -}}
+      </p>
+      {% endif %}
+
+      {# Die rohen Eimer - die Zahlen, aus denen bitcoind seine Empfehlung
+         ueberhaupt erst baut. Sie stehen sonst in keiner Oberflaeche. #}
+      <dl class="mw-vier">
+        <div>
+          <dt>{{ t.t("mehrwert.schaetzer.im_ziel") }}</dt>
+          <dd>{{ t.zahl(mw.schaetzer.im_ziel, 0) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t.t("mehrwert.schaetzer.gefallen") }}</dt>
+          <dd>{{ t.zahl(mw.schaetzer.gefallen, 0) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t.t("mehrwert.schaetzer.wartend") }}</dt>
+          <dd>{{ t.zahl(mw.schaetzer.wartend, 0) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t.t("mehrwert.schaetzer.verfall") }}</dt>
+          <dd>{{ t.zahl(mw.schaetzer.verfall, 3) }}</dd>
+        </div>
+      </dl>
+
+      {% if mw.schaetzer.von_sat_vb is not none or mw.schaetzer.bis_sat_vb is not none %}
+      <p class="mw-fussnote">
+        {{- t.t("mehrwert.schaetzer.eimer",
+                von=t.zahl(mw.schaetzer.von_sat_vb, 2),
+                bis=t.zahl(mw.schaetzer.bis_sat_vb, 2)) -}}
+        {% if mw.schaetzer.erfolg_p is not none %}
+        · {{ t.t("mehrwert.schaetzer.erfolg", p=t.zahl(mw.schaetzer.erfolg_p, 1)) }}
+        {% endif %}
+      </p>
+      {% endif %}
+      {% if mw.schaetzer.anderes_ziel %}
+      <p class="mw-fussnote">
+        {{- t.t("mehrwert.schaetzer.anderes_ziel",
+                n=t.zahl(mw.schaetzer.geantwortet)) -}}
+      </p>
+      {% endif %}
+      <p class="mw-fussnote">{{ t.t("mehrwert.schaetzer.warum") }}</p>
+    </article>
+
+    {# ---------------------------------- 3 Was die Bloecke wirklich verlangten
+       Ein Balkenpaar je Block: links die Prognose von jetzt, rechts der Preis,
+       den der Block tatsaechlich verlangt hat. Jede rote Saeule ist ein Block,
+       in den diese Prognose nicht hineingereicht haette - das ist die ganze
+       Aussage, und sie steht als Bild da, nicht als Satz. #}
+    <article class="mw-feld mw-breit">
+      <h3 class="mw-feldtitel">
+        {{ t.t("mehrwert.wirklich.titel") }}
+        <span class="mw-ms">{{ t.t("mehrwert.wirklich.fenster", n=t.zahl(mw.fenster)) }}</span>
+      </h3>
+
+      <p class="mw-legende">
+        <i class="mw-punkt mw-soll" aria-hidden="true"></i>{{ t.t("mehrwert.wirklich.soll") }}
+        <i class="mw-punkt mw-ist" aria-hidden="true"></i>{{ t.t("mehrwert.wirklich.ist") }}
+      </p>
+
+      {% if mw.bloecke %}
+      <div class="mw-band">
+        {% for b in mw.bloecke %}
+        {# Der Titel wird VOR dem Element gesetzt, damit im Attribut selbst
+           keine Zeilenumbrueche landen - die stuenden sonst wirklich im
+           Sprechblasentext des Browsers. #}
+        {% set titel = t.t("mehrwert.wirklich.saeule", h=t.zahl(b.hoehe),
+                           ist=t.zahl(b.ist, 2),
+                           soll=t.zahl(mw.vergleich.prognose, 2))
+                       if b.ist is not none
+                       else t.t("mehrwert.wirklich.saeule_leer", h=t.zahl(b.hoehe)) %}
+        <div class="mw-paar" title="{{ titel }}">
+          <span class="mw-schacht">
+            {%- if b.soll_p is not none %}
+            <i class="mw-saeule mw-soll" style="height:{{ "%.2f"|format(b.soll_p) }}%"></i>
+            {%- endif %}
+            {%- if b.ist_p is not none %}
+            <i class="mw-saeule mw-ist{{ ' mw-drueber' if b.ueber }}"
+               style="height:{{ "%.2f"|format(b.ist_p) }}%"></i>
+            {%- endif %}
+          </span>
+          <span class="mw-marke-klein">{{ b.kurz or t.t("value.missing") }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if mw.vergleich.genug %}
+      <p class="mw-befund{{ ' mw-schlecht' if mw.vergleich.nicht_gereicht }}">
+        {%- if mw.vergleich.nicht_gereicht %}
+        {{ t.t("mehrwert.wirklich.knapp", n=t.zahl(mw.vergleich.nicht_gereicht),
+               ges=t.zahl(mw.vergleich.n)) }}
+        {%- else %}
+        {{ t.t("mehrwert.wirklich.knapp_null", ges=t.zahl(mw.vergleich.n)) }}
+        {%- endif %}
+      </p>
+      <p class="mw-fussnote">
+        {{- t.t("mehrwert.wirklich.faktor",
+                f=t.zahl(mw.vergleich.faktor_median, 2),
+                max=t.zahl(mw.vergleich.faktor_max, 2)) -}}
+      </p>
+      {% else %}
+      <p class="mw-fussnote">{{ t.t("mehrwert.wirklich.wenig") }}</p>
+      {% endif %}
+      <p class="mw-fussnote">{{ t.t("mehrwert.wirklich.fussnote") }}</p>
+    </article>
+
+    {# ---------------------------------------- 4 Konkurrierende Kettenspitzen #}
+    <article class="mw-feld">
+      <h3 class="mw-feldtitel">
+        {{ t.t("mehrwert.spitzen.titel") }}
+        {%- if mw.spitzen_ms is not none %}
+        <span class="mw-ms">{{ t.t("mehrwert.ms", n=t.zahl(mw.spitzen_ms, 0)) }}</span>
+        {%- endif %}
+      </h3>
+
+      {% if mw.spitzen is none %}
+      <p class="mw-stand mw-schlecht">
+        <i class="mw-punkt" aria-hidden="true"></i>{{ t.t("mehrwert.stumm") }}
+      </p>
+      {% elif not mw.spitzen.zweige %}
+      <p class="mw-gross mw-mitte">{{ t.zahl(mw.spitzen.anzahl) }}</p>
+      <p class="mw-stand mw-gut">
+        <i class="mw-punkt" aria-hidden="true"></i>{{ t.t("tips.one") }}
+      </p>
+      {% else %}
+      <p class="mw-gross mw-mitte">{{ t.zahl(mw.spitzen.zweige) }}</p>
+      <p class="mw-stand mw-warn">
+        <i class="mw-punkt" aria-hidden="true"></i>
+        {%- if mw.spitzen.zweige == 1 %}
+        {{ t.t("tips.many.one", n=t.zahl(mw.spitzen.anzahl), f=t.zahl(1)) }}
+        {%- else %}
+        {{ t.t("tips.many", n=t.zahl(mw.spitzen.anzahl),
+               f=t.zahl(mw.spitzen.zweige)) }}
+        {%- endif %}
+      </p>
+
+      <ul class="mw-liste">
+        {% for z in mw.spitzen.liste %}
+        <li>
+          <span class="mw-wert">{{ t.zahl(z.hoehe) }}</span>
+          <span class="mw-marke-klein">
+            {{- t.t("tips.length") }} {{ t.zahl(z.laenge) -}}
+          </span>
+          <span class="mw-marke-klein">
+            {%- if z.stand_schluessel %}{{ t.t("tips.state." ~ z.stand_schluessel) }}
+            {%- elif z.stand %}{{ z.stand }}
+            {%- else %}{{ t.t("value.missing") }}{% endif -%}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% if mw.spitzen.weitere %}
+      <p class="mw-fussnote">
+        {%- if mw.spitzen.weitere == 1 %}{{ t.t("tips.more.one") }}
+        {%- else %}{{ t.t("tips.more", n=t.zahl(mw.spitzen.weitere)) }}{% endif -%}
+      </p>
+      {% endif %}
+      {% endif %}
+      <p class="mw-fussnote">{{ t.t("mehrwert.spitzen.warum") }}</p>
+    </article>
+
+    {# ------------------------------------- 5 Kein Nachhausetelefonieren
+       Kein Versprechen in Worten, sondern zwei gemessene Zahlen: die Verweise
+       in den ausgelieferten Dateien und die Ziele, mit denen die App
+       ueberhaupt spricht. Das Symbol ist eingebettet - eine Grafik, die von
+       aussen nachgeladen wuerde, waere in dieser Kachel besonders komisch. #}
+    <article class="mw-feld mw-still-{{ mw.still.klasse }}">
+      <h3 class="mw-feldtitel">{{ t.t("mehrwert.still.titel") }}</h3>
+
+      <div class="mw-symbolzeile">
+        <svg class="mw-symbol" viewBox="0 0 24 24" role="img" aria-hidden="true"
+             focusable="false" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M3.2 9.5h17.6M3.2 14.5h17.6"/>
+          <ellipse cx="12" cy="12" rx="4.2" ry="9"/>
+          <path class="mw-schraeg" d="M5 19 19 5" stroke-width="2.2"/>
+        </svg>
+        {# Welcher Satz gilt, entscheidet das Modul - dort ist es pruefbar. #}
+        <p class="mw-zusage">{{ t.t(mw.still.satz) }}</p>
+      </div>
+
+      <div class="mw-zeile">
+        <span class="mw-marke">{{ t.t("mehrwert.still.dateien",
+            n=t.zahl(mw.still.dateien)) }}</span>
+        <span class="mw-wert">{{ t.zahl(mw.still.fremdquellen) }}</span>
+      </div>
+      <div class="mw-zeile">
+        <span class="mw-marke">{{ t.t("mehrwert.still.ziele") }}</span>
+        <span class="mw-wert">
+          {{- t.zahl(mw.still.daheim) }}/{{ t.zahl(mw.still.ziele_gesamt) -}}
+        </span>
+      </div>
+
+      <ul class="mw-liste">
+        {% for z in mw.still.ziele %}
+        <li>
+          <span class="mw-marke">{{ t.t(z.schluessel) }}</span>
+          <span class="mw-marke-klein mw-{{ z.klasse }}">
+            {{- t.t("mehrwert.still.art." ~ z.art) -}}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="mw-fussnote">{{ t.t("mehrwert.still.pruefung") }}</p>
+    </article>
+
+  </div>
+</section>
+{% endif %}

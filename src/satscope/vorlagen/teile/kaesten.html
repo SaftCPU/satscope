@@ -1,0 +1,262 @@
+{#
+  Die vier Kaesten unter dem Blockband. Einbinden mit
+
+      {% include "teile/kaesten.html" %}
+
+  und im Handler EINE Zeile:
+
+      ka = await kaesten.erhebe(TOR, s)      # s ist freiwillig
+
+  Der Teil braucht `t` (Sprache) und `ka` (kaesten.erhebe). Fehlt `ka`, steht
+  hier trotzdem der ganze Aufbau - jede Zahl wird dann zum Strich. Das ist
+  Absicht: eine vergessene Zeile im Handler soll auffallen, nicht die Seite
+  heimlich um vier Kaesten kuerzen.
+
+  ⚠️ JINJA-FALLE, an der dieser Teil sonst abstuerzt: `ka.gebuehren.stufen` ist
+  eine ZWEISTUFIGE Abfrage. Fehlt `ka`, liefert die erste Stufe ein Undefined,
+  und JEDER Zugriff darauf wirft einen UndefinedError - anders als der Zugriff
+  auf ein dict, das schlicht wieder Undefined liefert. Deshalb wird hier jede
+  Ebene EINZELN in eine eigene Variable geholt und mit `or {}` bzw. `or []`
+  abgefangen. Wer die Abkuerzung nimmt, merkt es erst, wenn der Knoten schweigt.
+
+  ⚠️ Zahlen NUR ueber t.zahl(), und t.zahl() NUR auf gepruefte Zahlen: ein
+  Undefined wuerde dort in ein TypeError laufen. Der Makro `z()` unten macht
+  genau diese Pruefung - im Zweifel ihn benutzen.
+#}
+{% set g  = (ka.gebuehren  if ka else none) or {} %}
+{% set a  = (ka.anpassung  if ka else none) or {} %}
+{% set hb = (ka.halbierung if ka else none) or {} %}
+{% set bl = (ka.bloecke    if ka else none) or [] %}
+{% set strich = t.t("value.missing") %}
+
+{# Ein Stylesheet im Body ist erlaubt (rel="stylesheet" gilt als "body-ok").
+   So bleibt der Teil in sich geschlossen und grundlage.html muss nichts von
+   ihm wissen - genau wie beim Blockband. #}
+<link rel="stylesheet" href="/statisch/kaesten.css">
+
+{% macro z(wert, stellen=0) -%}
+{{ t.zahl(wert, stellen) if wert is number else strich }}
+{%- endmacro %}
+
+{# sat/vB: unter zehn braucht es eine Nachkommastelle, darueber ist sie
+   Ballast. Dieselbe Regel wie im Band, damit dieselbe Gebuehr auf einer Seite
+   nicht zweimal verschieden gerundet dasteht. #}
+{% macro satz(wert) -%}
+{{ z(wert, 0) if (wert is number and wert >= 10) else z(wert, 1) }}
+{%- endmacro %}
+
+{% macro balken(p, beschriftung) -%}
+{% if p is number %}<div class="ks-balken" role="progressbar" aria-valuemin="0"
+     aria-valuemax="100" aria-valuenow="{{ '%.0f'|format(p) }}"
+     aria-label="{{ beschriftung }}"><i
+     style="width:{{ '%.1f'|format(p if p < 100 else 100) }}%"></i></div>{% endif %}
+{%- endmacro %}
+
+<section class="kaesten">
+
+  {# ------------------------------------------------- 1. Transaktionsgebuehren
+     Vier Stufen wie im Vorbild. Die linke ist KEINE Schaetzung, sondern die
+     Weiterleitungsgrenze des eigenen Knotens - darunter nimmt er gar nichts
+     an. Deshalb traegt sie einen eigenen Untertitel. #}
+  <article class="ks ks-geb">
+    <h2 class="ks-titel">{{ t.t("kaesten.fees.title") }}</h2>
+    <p class="ks-unter">{{ t.t("kaesten.fees.sub") }}</p>
+
+    <div class="ks-stufen">
+      {% for st in (g.stufen or []) %}
+      <div class="ks-stufe" data-ziel="{{ st.ziel if st.ziel else 'boden' }}">
+        <span class="ks-stufe-name">{{ t.t(st.schluessel) }}</span>
+        <span class="ks-wert">{{ satz(st.sat_vb) }}<i class="ks-einheit">{{ t.t("spiel.fee.unit") }}</i></span>
+        <span class="ks-ziel">{{ t.t(st.ziel_schluessel) }}</span>
+        <span class="ks-kosten">
+          {%- if st.kosten_sat is number -%}
+          {{ t.t("kaesten.fees.for_tx", n=t.zahl(st.kosten_sat), vb=t.zahl(g.typisch_vb)) }}
+          {%- endif -%}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {# Vier Striche ohne Erklaerung sehen aus wie ein Fehler in der Seite.
+       Erst wenn KEINE einzige Stufe eine Zahl hat, ist der Knoten stumm. #}
+    {% if not g.da %}<p class="ks-leer">{{ t.t("kaesten.nonode") }}</p>{% endif %}
+
+    {% if g.tag_sat_vb is number %}
+    <p class="ks-note">
+      {{ t.t("kaesten.fees.day", n=t.zahl(g.tag_sat_vb, 1)) }}
+      {%- if g.sparen_p is number %} · {{ t.t("spiel.fee.save", p=t.zahl(g.sparen_p, 0)) }}{% endif %}
+    </p>
+    {% endif %}
+
+    {# Nur wenn der Knoten wirklich ueber der uebliches 1 sat/vB raeumt - sonst
+       stuende diese Warnung auf jeder ruhigen Seite. #}
+    {% if g.boden_warnung is number %}
+    <p class="ks-warnung">{{ t.t("spiel.fee.floor", n=t.zahl(g.boden_warnung, 2)) }}</p>
+    {% endif %}
+
+    <p class="ks-fein">{{ t.t("kaesten.fees.nofiat") }}</p>
+  </article>
+
+  {# --------------------------------------------- 2. Schwierigkeitsanpassung
+     Die Prozentzahl ist eine Hochrechnung aus der bisher verstrichenen Zeit
+     der laufenden Periode; sie steht deshalb neben einem Satz, der genau das
+     sagt. Gefaerbt wird die Richtung NICHT: steigende Schwierigkeit heisst
+     "es wurde schneller gemined", fallende "langsamer" - beides ist weder gut
+     noch schlecht, sondern der Regelkreis selbst. #}
+  <article class="ks ks-anp">
+    <h2 class="ks-titel">{{ t.t("spiel.retarget.title") }}</h2>
+    <p class="ks-unter">{{ t.t("kaesten.retarget.sub", n=t.zahl(a.periode if a.periode is number else 2016)) }}</p>
+
+    <div class="ks-kopfzahl" data-richtung="{{ a.richtung or 'unbekannt' }}">
+      {%- if a.aenderung_schluessel and a.aenderung_betrag is number -%}
+      {{ t.t(a.aenderung_schluessel, p=t.zahl(a.aenderung_betrag, 2)) }}
+      {%- else -%}{{ strich }}{%- endif -%}
+    </div>
+    {% if a.satz_schluessel %}
+    <p class="ks-satz">
+      {%- if a.aenderung_betrag is number -%}
+      {{ t.t(a.satz_schluessel, p=t.zahl(a.aenderung_betrag, 1)) }}
+      {%- else -%}
+      {{ t.t(a.satz_schluessel) }}
+      {%- endif -%}
+    </p>
+    {% endif %}
+
+    {{ balken(a.fortschritt_p, t.t("kaesten.progress", p=t.zahl(a.fortschritt_p, 0) if a.fortschritt_p is number else strich)) }}
+
+    <dl class="ks-paare">
+      <div class="ks-paar">
+        <dt>{{ t.t("spiel.retarget.blocks") }}</dt>
+        <dd>{{ z(a.verbleibend) }}</dd>
+      </div>
+      <div class="ks-paar">
+        <dt>{{ t.t("kaesten.retarget.period") }}</dt>
+        <dd>{{ z(a.im_zeitraum) }}<span class="ks-von">/ {{ z(a.periode) }}</span></dd>
+      </div>
+      <div class="ks-paar">
+        <dt>{{ t.t("spiel.estimated") }}</dt>
+        <dd>{% if a.datum %}{{ t.t("kaesten.when", datum=a.datum) }}{% else %}{{ strich }}{% endif %}</dd>
+      </div>
+      <div class="ks-paar">
+        <dt>{{ t.t("node.difficulty") }}</dt>
+        <dd>{% if a.jetzt_t is number %}{{ t.t("kaesten.tera", n=t.zahl(a.jetzt_t, 2)) }}{% else %}{{ strich }}{% endif %}</dd>
+      </div>
+    </dl>
+
+    {# Die Fusszeile wird STUECKWEISE zusammengesetzt und erst am Ende gedruckt.
+       Wer die drei Teile stattdessen mit einem festen " · " davor schreibt,
+       bekommt bei einem fehlenden ersten Teil eine Zeile, die mit einem
+       Trennpunkt anfaengt - und bei drei fehlenden eine leere Zeile, die
+       trotzdem Platz braucht. #}
+    {% set n1 = namespace(txt="") %}
+    {% if a.takt_s is number %}
+      {% set n1.txt = t.t("spiel.retarget.pace", min=t.zahl(a.takt_s / 60.0, 1)) %}
+    {% endif %}
+    {% if a.vorsprung_schluessel and a.vorsprung_s is number %}
+      {% set n1.txt = n1.txt ~ (" · " if n1.txt else "") ~ t.t(a.vorsprung_schluessel, n=t.zahl(a.vorsprung_s / 3600.0, 1)) %}
+    {% endif %}
+    {% if a.neu_t is number %}
+      {% set n1.txt = n1.txt ~ (" · " if n1.txt else "") ~ t.t("kaesten.retarget.newdiff", n=t.zahl(a.neu_t, 2)) %}
+    {% endif %}
+    {% if n1.txt %}<p class="ks-note">{{ n1.txt }}</p>{% endif %}
+  </article>
+
+  {# ---------------------------------------------------- 3. Letzte Bloecke
+     Vier Spalten wie im Vorbild. Die Zeit ist die des MINERS und steht als
+     feste Uhrzeit da: ein serverseitig gerechnetes "vor n Minuten" waere
+     schon beim Lesen falsch, weil hier - anders als im Band darueber - kein
+     JavaScript mitzaehlt. #}
+  <article class="ks ks-blocks">
+    <div class="ks-kopf">
+      <h2 class="ks-titel">{{ t.t("kaesten.blocks.title") }}</h2>
+      <a class="ks-mehr" href="/blocks">{{ t.t("kaesten.blocks.all") }}</a>
+    </div>
+    {# "Die letzten 0 Bloecke" waere eine Zeile, die niemand braucht - fehlen
+       sie, sagt das die Zeile darunter. #}
+    {% if bl %}
+    <p class="ks-unter">{{ t.t("kaesten.blocks.sub", n=t.zahl(bl|length)) }}</p>
+    <div class="ks-rolle">
+      <table class="ks-tabelle">
+        <thead>
+          <tr>
+            <th scope="col">{{ t.t("blocks.col.height") }}</th>
+            <th scope="col" title="{{ t.t('kaesten.blocks.minertime') }}">{{ t.t("blocks.col.time") }}</th>
+            <th scope="col" class="ks-r">{{ t.t("blocks.col.txs") }}</th>
+            <th scope="col" class="ks-r">{{ t.t("blocks.col.size") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bl %}
+          <tr>
+            <td>
+              {%- if b.hoehe is number -%}
+              <a class="ks-hoehe" href="/block/{{ b.hoehe|int }}">{{ z(b.hoehe) }}</a>
+              {%- else -%}{{ strich }}{%- endif -%}
+            </td>
+            <td class="ks-zeit" title="{{ b.zeit_voll or '' }}">{{ b.zeit_kurz or strich }}</td>
+            <td class="ks-r">{{ z(b.txs) }}</td>
+            <td class="ks-r">
+              {%- if b.groesse_mb is number -%}
+              {{ t.t("chain.megabytes", n=t.zahl(b.groesse_mb, 2)) }}
+              {%- else -%}{{ strich }}{%- endif -%}
+              {{ balken(b.fuellung_p, t.t("blocks.fill", p=t.zahl(b.fuellung_p, 0) if b.fuellung_p is number else strich)) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="ks-leer">{{ t.t("kaesten.blocks.none") }}</p>
+    {% endif %}
+  </article>
+
+  {# ------------------------------------------------ 4. Ausgabe & Halbierung
+     An dieser Stelle stehen im Vorbild die zuletzt gesehenen Transaktionen.
+     Die kaemen aus getrawmempool (13 MB JSON je Aufruf) oder aus ZMQ - das
+     eine ist in diesem Projekt gesperrt, das andere steht uns nicht zur
+     Verfuegung. Statt einen Strom zu erfinden, steht hier die zweite Uhr des
+     Protokolls: sie kostet keinen einzigen Aufruf und ist bis auf das Datum
+     exakt. #}
+  <article class="ks ks-halb">
+    <h2 class="ks-titel">{{ t.t("spiel.halving.title") }}</h2>
+    <p class="ks-unter">{{ t.t("kaesten.halving.sub") }}</p>
+
+    <div class="ks-kopfzahl" data-richtung="halbierung">{{ z(hb.verbleibend) }}</div>
+    <p class="ks-satz">{{ t.t("spiel.halving.blocks") }}</p>
+
+    {{ balken(hb.fortschritt_p, t.t("kaesten.progress", p=t.zahl(hb.fortschritt_p, 0) if hb.fortschritt_p is number else strich)) }}
+
+    <dl class="ks-paare">
+      <div class="ks-paar">
+        <dt>{{ t.t("block.height") }}</dt>
+        <dd>{% if hb.hoehe is number %}{{ t.t("spiel.halving.at", h=t.zahl(hb.hoehe)) }}{% else %}{{ strich }}{% endif %}</dd>
+      </div>
+      <div class="ks-paar">
+        <dt>{{ t.t("spiel.estimated") }}</dt>
+        <dd>{% if hb.datum %}{{ t.t("kaesten.when", datum=hb.datum) }}{% else %}{{ strich }}{% endif %}</dd>
+      </div>
+      <div class="ks-paar">
+        <dt>{{ t.t("block.feld.subsidy") }}</dt>
+        <dd>{{ z(hb.btc, 4) }}<span class="ks-von">BTC</span></dd>
+      </div>
+      <div class="ks-paar">
+        <dt>{{ t.t("kaesten.halving.next") }}</dt>
+        <dd>{{ z(hb.naechste_btc, 4) }}<span class="ks-von">BTC</span></dd>
+      </div>
+    </dl>
+
+    {# Stueckweise wie im Kasten darueber, aus demselben Grund. #}
+    {% set n2 = namespace(txt="") %}
+    {% if hb.epoche_nr is number %}
+      {% set n2.txt = t.t("spiel.halving.epoch", n=t.zahl(hb.epoche_nr)) %}
+    {% endif %}
+    {% if hb.eta_schluessel and hb.eta_wert is number %}
+      {% set n2.txt = n2.txt ~ (" · " if n2.txt else "") ~ t.t(hb.eta_schluessel, n=t.zahl(hb.eta_wert, 0)) %}
+    {% endif %}
+    {% if hb.pro_tag_btc is number %}
+      {% set n2.txt = n2.txt ~ (" · " if n2.txt else "") ~ t.t("kaesten.halving.perday", n=t.zahl(hb.pro_tag_btc, 0)) %}
+    {% endif %}
+    {% if n2.txt %}<p class="ks-note">{{ n2.txt }}</p>{% endif %}
+  </article>
+
+</section>

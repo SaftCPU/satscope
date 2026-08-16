@@ -20,9 +20,13 @@ document.documentElement.classList.add("js");})();
 <link rel="stylesheet" href="/statisch/satscope.css">
 <link rel="stylesheet" href="/statisch/tiefenkarte.css">
 <link rel="stylesheet" href="/statisch/feinschliff.css">
+<!-- ZULETZT: ueberschreibt die Farbvariablen aller vorherigen Blaetter mit
+     den echten Werten aus mempool.space. Die Reihenfolge ist der ganze
+     Trick - gleiche Spezifitaet, spaetere Regel gewinnt. -->
+<link rel="stylesheet" href="/statisch/mempoollook.css">
 </head>
 <body>
-  {% include "teile/kopfleiste.html" %}
+  {% include "teile/navleiste.html" %}
 
   <main class="inhalt">
     {% block inhalt %}{% endblock %}

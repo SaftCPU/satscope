@@ -1,0 +1,248 @@
+{#
+  Navleiste: die Kopfleiste im Mempool-Zuschnitt.
+  ============================================================================
+
+  Sie ersetzt teile/kopfleiste.html eins zu eins. In grundlage.html wird aus
+
+      {% include "teile/kopfleiste.html" %}
+  einfach
+      {% include "teile/navleiste.html" %}
+
+  und sonst nichts. Der Zuschnitt folgt dem Original:
+
+      [ Marke ]     [ ------ Suche, breit und mittig ------ ]    [ Werkzeuge ]
+      [ Uebersicht   Bloecke   Mempool   Gebuehren   Mining   Knoten ]
+
+  WARUM EINE ZWEITE DATEI UND KEIN UMBAU DER ALTEN
+  kopfleiste.html gehoert in dieser Arbeitsteilung jemand anderem. Eine zweite
+  Datei laesst beide Zuschnitte nebeneinander bestehen; ein Rueckbau ist eine
+  geaenderte include-Zeile und kein git revert ueber fremde Aenderungen.
+
+  KONTEXT, den die Vorlage erwartet - alles freiwillig, nichts bricht:
+    t             Texte-Objekt (Pflicht)
+    pfad          aktueller Pfad, fuer Sprachumschaltung und Hervorhebung
+    suchwert      vorbelegte Sucheingabe
+    ziel_bloecke  Pfad der Blockliste fuer das Kuerzel "g b"
+  Eine Teilvorlage, die eine Seite mit UndefinedError abschiesst, waere ein
+  schlechter Tausch fuer etwas Kosmetik - deshalb ueberall |default().
+
+  ⚠️ DIESE KLASSEN UND ATTRIBUTE BRAUCHT feinschliff.js. Wer sie umbenennt,
+     nimmt der Seite still die halbe Bedienung; nichts davon wirft einen
+     Fehler, es hoert nur auf zu wirken:
+       .thema-knopf[data-thema]     Themenwahl + Kuerzel "t"
+       .kopf-suche, input[name="q"] Kuerzel "/" springt in das Feld
+       .hilfe > summary             Kuerzel "?" klappt die Uebersicht auf
+       .kuerzel li[data-kette][data-ziel]
+                                    QUELLE der Sprungkuerzel "g h" / "g b" -
+                                    das Skript liest sie hier aus, damit
+                                    Anzeige und Wirkung nicht auseinanderlaufen
+       #satscope-texte[data-text-*] der gesamte Textvorrat des Skripts
+       #satscope-melder             die einzige Live-Region der Seite
+
+  Alle SVG sind eingebettet und nicht verlinkt: die App macht KEINEN Aufruf
+  nach draussen, und jede zusaetzliche Datei ist eine weitere Anfrage, die auf
+  einem Pi im Ladebild sichtbar wird.
+#}
+
+{#
+  Das Gestaltungssystem. Ein <link rel="stylesheet"> im Body ist erlaubt
+  ("body-ok") und haelt diesen Teil in sich geschlossen - genau so macht es
+  teile/blockkette.html schon.
+
+  ⚠️ BESSER IM KOPF. Steht die Zeile in grundlage.html als LETZTES Stylesheet
+     (nach satscope.css und feinschliff.css), faellt das kurze Aufblitzen der
+     alten Farben weg. Wer sie dort eintraegt, LOESCHT sie hier - zweimal
+     dasselbe Stylesheet ist zwar folgenlos, aber ein Raetsel fuer den
+     Naechsten.
+#}
+
+<a class="sprung" href="#inhalt">{{ t.t("a11y.skip") }}</a>
+
+<header class="kopf">
+  {# .kopf ist die durchgehende Leiste, .kopf-innen begrenzt ihren INHALT auf
+     die Seitenbreite. Ohne diese zweite Ebene klebt die Marke auf einem
+     breiten Bildschirm am linken Rand und die Werkzeuge am rechten, waehrend
+     der Inhalt darunter mittig steht - das sieht nach zwei Seiten aus. #}
+  <div class="kopf-innen">
+
+    <a class="marke" href="/" title="{{ t.t('app.tagline') }}">
+      <span class="marke-punkt" aria-hidden="true"></span>
+      <span class="marke-name">{{ t.t("app.name") }}</span>
+      {# Der Zusatz erklaert die Marke beim ersten Besuch und ist danach
+         Beiwerk. Auf schmalen Geraeten blendet mempoollook.css ihn als Erstes
+         aus - aria-hidden, weil der Verweis mit title schon denselben Satz
+         ansagt und ihn sonst doppelt vorlaese. #}
+      <span class="marke-zusatz" aria-hidden="true">{{ t.t("app.tagline") }}</span>
+    </a>
+
+    {#
+      Die Suche steht in der Leiste, damit sie auf JEDER Seite erreichbar ist
+      und "/" ueberall etwas zu fokussieren findet. Auf Seiten mit grosser
+      Suche im Inhalt blendet feinschliff.css diese hier aus - zwei Suchfelder
+      untereinander sind Ratlosigkeit, keine Bequemlichkeit.
+      role="search" macht sie zur benannten Landmarke; ohne das ist sie in der
+      Landmarkenliste eines Vorleseprogramms nur "Formular".
+    #}
+    <form class="kopf-suche" action="/suche" method="get" role="search">
+      <label class="nur-lesbar" for="kopf-suchfeld">{{ t.t("search.label") }}</label>
+      <input class="kopf-suchfeld" id="kopf-suchfeld" type="search" name="q"
+             autocomplete="off" spellcheck="false" autocapitalize="off"
+             autocorrect="off"
+             placeholder="{{ t.t('search.placeholder') }}"
+             value="{{ suchwert|default('', true) }}">
+      <button class="kopf-lupe" type="submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" aria-hidden="true" focusable="false">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.6-3.6"></path>
+        </svg>
+        <span class="nur-lesbar">{{ t.t("search.go") }}</span>
+      </button>
+    </form>
+
+    <div class="kopf-werkzeuge">
+
+      {# Sprachwahl zuerst, weil sie der einzige Schalter ist, der auch OHNE
+         JavaScript wirkt: der Server setzt das Cookie und leitet zurueck.
+         Sichtbar ist nur das Kuerzel (Platz in der Leiste), vorgelesen wird
+         der ganze Sprachname. #}
+      <a class="sprachwahl" rel="nofollow"
+         href="/sprache/{{ "de" if t.sprache == "en" else "en" }}?weiter={{ (pfad|default('/', true))|urlencode }}"
+         aria-label="{{ t.t('lang.switch') }}"
+         title="{{ t.t('lang.switch') }}">
+        <span aria-hidden="true">{{ t.t("lang.short") }}</span>
+      </a>
+
+      {#
+        Themenwahl. Bewusst drei Knoepfe statt eines Umschalters: bei zwei
+        Zustaenden laesst sich "folge dem System" nicht mehr ausdruecken - und
+        genau das ist die Vorgabe, mit der die App ausgeliefert wird.
+        Ohne JavaScript hat die Wahl keine Wirkung, deshalb "nur-mit-js":
+        ein Knopf, der nichts tut, ist schlimmer als kein Knopf.
+        aria-pressed ist zugleich der Zustand fuer das CSS - eine zweite
+        Klasse dafuer koennte auseinanderlaufen, und dann zeigt das Bild etwas
+        anderes als die Vorleseansage.
+      #}
+      <div class="themenwahl nur-mit-js" role="group" aria-label="{{ t.t('theme.label') }}">
+        <button class="thema-knopf" type="button" data-thema="light"
+                aria-pressed="false" title="{{ t.t('theme.light') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="4.2"></circle>
+            <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"></path>
+          </svg>
+          <span class="nur-lesbar">{{ t.t("theme.light") }}</span>
+        </button>
+        <button class="thema-knopf" type="button" data-thema="system"
+                aria-pressed="true" title="{{ t.t('theme.system') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <rect x="3" y="4" width="18" height="12.5" rx="1.8"></rect>
+            <path d="M8.5 20.5h7M12 16.5v4"></path>
+          </svg>
+          <span class="nur-lesbar">{{ t.t("theme.system") }}</span>
+        </button>
+        <button class="thema-knopf" type="button" data-thema="dark"
+                aria-pressed="false" title="{{ t.t('theme.dark') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M20 14.2A8.2 8.2 0 1 1 9.8 4a6.6 6.6 0 0 0 10.2 10.2z"></path>
+          </svg>
+          <span class="nur-lesbar">{{ t.t("theme.dark") }}</span>
+        </button>
+      </div>
+
+      {#
+        Tastenkuerzel-Uebersicht als <details>: aufklappbar ohne eine Zeile
+        JavaScript, mit Tastatur bedienbar und vom Browser selbst korrekt an
+        Vorleseprogramme gemeldet. Ein selbstgebautes Menue muesste all das
+        nachbauen und waere dabei schlechter.
+
+        Diese Liste ist zugleich die QUELLE der Kuerzel: feinschliff.js liest
+        data-kette und data-ziel hier heraus. Damit kann die Anzeige nicht von
+        der Wirkung abweichen - der klassische Fehler bei Hilfeseiten.
+      #}
+      <details class="hilfe nur-mit-js">
+        <summary class="werkzeug-knopf" title="{{ t.t('keys.open') }}"
+                 aria-label="{{ t.t('keys.open') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+               stroke-linecap="round" aria-hidden="true" focusable="false">
+            <path d="M9.1 9a3 3 0 1 1 4.1 2.8c-.8.4-1.2 1-1.2 1.9v.5"></path>
+            <path d="M12 17.4v.2"></path>
+          </svg>
+        </summary>
+        <div class="hilfe-tafel">
+          <p class="hilfe-titel">{{ t.t("keys.title") }}</p>
+          <ul class="kuerzel">
+            <li data-taste="/"><span class="tasten"><kbd>/</kbd></span>
+              <span>{{ t.t("keys.search") }}</span></li>
+            <li data-taste="Escape"><span class="tasten"><kbd>Esc</kbd></span>
+              <span>{{ t.t("keys.escape") }}</span></li>
+            <li data-kette="g h" data-ziel="/">
+              <span class="tasten"><kbd>g</kbd><kbd>h</kbd></span>
+              <span>{{ t.t("keys.home") }}</span></li>
+            <li data-kette="g b" data-ziel="{{ ziel_bloecke|default('/blocks', true) }}">
+              <span class="tasten"><kbd>g</kbd><kbd>b</kbd></span>
+              <span>{{ t.t("keys.blocks") }}</span></li>
+            <li data-taste="t"><span class="tasten"><kbd>t</kbd></span>
+              <span>{{ t.t("keys.theme") }}</span></li>
+            <li data-taste="c"><span class="tasten"><kbd>c</kbd></span>
+              <span>{{ t.t("keys.copy") }}</span></li>
+            <li data-taste="?"><span class="tasten"><kbd>?</kbd></span>
+              <span>{{ t.t("keys.help") }}</span></li>
+          </ul>
+          <p class="hilfe-fuss">{{ t.t("keys.hint_chord") }}</p>
+        </div>
+      </details>
+
+    </div>
+  </div>
+</header>
+
+{#
+  Bereichsnavigation. Eine eigene Zeile unter dem Kopf: auf dem Handy passen
+  sechs Menuepunkte NICHT neben Marke und Suchfeld. Sie rollt dort waagerecht,
+  statt umzubrechen (mempoollook.css, .nav-innen mit overflow-x:auto) - eine
+  zweite Zeile kostet auf 360 px mehr Hoehe, als das Wischen an Muehe kostet.
+
+  Die Hervorhebung des aktuellen Bereichs steht doppelt: sichtbar ueber die
+  Klasse, ansagbar ueber aria-current. Nur eine der beiden reicht nie - Farbe
+  allein sagt einem Vorleseprogramm nichts, aria-current allein sagt dem Auge
+  nichts.
+#}
+<nav class="hauptnav" aria-label="{{ t.t('nav.label') }}">
+  <div class="nav-innen">
+    {% set hier = pfad|default('/', true) %}
+    {% for ziel, schluessel in [
+          ("/",          "nav.home"),
+          ("/blocks",    "nav.blocks"),
+          ("/mempool",   "nav.mempool"),
+          ("/gebuehren", "nav.fees"),
+          ("/mining",    "nav.mining"),
+          ("/node",      "nav.node")] %}
+      {% set aktiv = (hier == ziel) or (ziel != "/" and hier.startswith(ziel)) %}
+      <a href="{{ ziel }}"{% if aktiv %} class="hier" aria-current="page"{% endif %}>{{ t.t(schluessel) }}</a>
+    {% endfor %}
+  </div>
+</nav>
+
+{#
+  Textvorrat fuer feinschliff.js. Das JavaScript fuehrt KEINE eigenen Saetze -
+  sonst gaebe es einen zweiten, unuebersetzten Textkatalog, der beim naechsten
+  Sprachwechsel still englisch bleibt. Alles kommt aus t.t().
+
+  Der Vorsatz "data-text-" ist Absicht und kein Schmuck: der Kopierknopf sucht
+  seine Ziele ueber [data-kopieren], und ein Textvorrat mit genau diesem
+  Attribut haette sich selbst einen Kopierknopf eingehandelt - "c" haette dann
+  das Wort "Kopieren" in die Zwischenablage gelegt.
+#}
+<span id="satscope-texte" hidden
+      data-text-kopieren="{{ t.t('copy.action') }}"
+      data-text-kopiert="{{ t.t('copy.done') }}"
+      data-text-fehler="{{ t.t('copy.failed') }}"
+      data-text-wert-fehlt="{{ t.t('value.unavailable') }}"
+      data-text-wert-laedt="{{ t.t('value.loading') }}"></span>
+
+{# Eine einzige Live-Region fuer die ganze Seite. Rueckmeldungen wie "Kopiert"
+   sind sonst NUR sichtbar - wer nicht hinsieht, erfaehrt nie, ob es geklappt
+   hat. role="status" meldet hoeflich, ohne den Lesefluss zu unterbrechen. #}
+<div id="satscope-melder" class="nur-lesbar" role="status" aria-live="polite"></div>
