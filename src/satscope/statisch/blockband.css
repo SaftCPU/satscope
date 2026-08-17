@@ -153,7 +153,11 @@
 /* Deckel: um --tiefe nach oben versetzt, die Oberkante wandert beim Scheren um
    genau --tiefe nach rechts - dort trifft sie die Oberkante der Seitenflaeche. */
 .bb-wuerfel::before{
-  content:""; position:absolute; left:0; top:calc(-1 * var(--tiefe));
+  content:""; position:absolute; left:0;
+  /* Der Deckel liegt auf dem FUELLSTAND, nicht auf der Wuerfeloberkante.
+     Bei einem halb gefuellten Block schwebte er sonst ueber Luft - und
+     genau daran erkennt man im Original einen noch nicht vollen Block. */
+  top:calc(100% - var(--fuell, 100) * 1% - var(--tiefe));
   width:100%; height:var(--tiefe);
   background:color-mix(in srgb, var(--f) 68%, #fff);
   transform:skewX(-45deg); transform-origin:bottom left;
@@ -161,8 +165,11 @@
 /* Seite: um --tiefe nach rechts versetzt, die rechte Kante wandert um --tiefe
    nach oben. Dunkler, weil das Licht von links oben kommt. */
 .bb-wuerfel::after{
-  content:""; position:absolute; top:0; right:calc(-1 * var(--tiefe));
-  width:var(--tiefe); height:100%;
+  content:""; position:absolute; right:calc(-1 * var(--tiefe));
+  /* Die Seite waechst mit der Fuellung mit - sonst stuende eine volle
+     Seitenwand neben einer halb gefuellten Vorderseite. */
+  top:calc(100% - var(--fuell, 100) * 1%);
+  width:var(--tiefe); height:calc(var(--fuell, 100) * 1%);
   background:color-mix(in srgb, var(--f) 58%, #000);
   transform:skewY(-45deg); transform-origin:left top;
 }
@@ -181,12 +188,16 @@
    projizierten in virtuellen Bytes. Ein Strich statt einer Zahl: den Vergleich
    ueber die ganze Reihe sieht das Auge schneller, als es Zahlen liest. */
 .bb-fuell{
-  position:absolute; left:0; right:0; bottom:0; height:3px;
-  background:rgba(0,0,0,.25); overflow:hidden; border-radius:0 0 2px 2px;
+  /* Frueher ein 3 px hoher Streifen am unteren Rand, dessen BREITE wuchs.
+     Im Original steigt die Farbe im ganzen Wuerfel hoch - das zeigt auf
+     einen Blick, wieviel Platz der Block noch hat. */
+  position:absolute; inset:0; overflow:hidden; border-radius:inherit;
+  z-index:0; pointer-events:none;
 }
 .bb-fuell i{
-  display:block; height:100%; width:0; background:rgba(255,255,255,.8);
-  transition:width .5s ease;
+  position:absolute; left:0; right:0; bottom:0; width:auto;
+  height:calc(var(--fuell, 100) * 1%);
+  background:var(--f); transition:height .5s ease;
 }
 
 /* Unter dem Wuerfel: Hoehe und Alter. Die Hoehe ist im Original ein Link und
@@ -347,3 +358,14 @@
   .bb-spanne,.bb-txs,.bb-mb{font-size:.58rem}
   .bb-skala i{width:62px}
 }
+
+
+/* --- Fuellhoehe: leerer Teil und Schrift darueber ----------------------- */
+/* Der Wuerfel traegt jetzt den LEEREN Zustand als Grund; die Farbe steigt in
+   .bb-fuell i darin hoch. Ohne diesen dunklen Grund waere ein halb gefuellter
+   Block oben durchsichtig und man saehe die Seitenflaeche dahinter. */
+.bb-w-block .bb-wuerfel{
+  background:color-mix(in srgb, var(--f) 14%, var(--bb-tief, #11131f));
+}
+/* Die Zahlen muessen ueber der Fuellung stehen, sonst verdeckt sie sie. */
+.bb-rate, .bb-spanne, .bb-txs, .bb-mb{position:relative; z-index:1}

@@ -199,8 +199,20 @@
         a.textContent = alter(jetzt() - o.zeit);
       }
     }
-    var f = el.querySelector(".bb-fuell i");
-    if (f) { f.style.width = (o.fuell === null ? 0 : o.fuell).toFixed(1) + "%"; }
+    // Die Fuellung steht als Variable am WUERFEL: daran haengen Vorderseite,
+    // Deckel und Seite gleichzeitig - drei Flaechen, eine Zahl. Frueher setzte
+    // das JavaScript die Breite eines Streifens am unteren Rand; die drei
+    // Flaechen wussten nichts voneinander, und ein halb gefuellter Block sah
+    // aus wie ein voller.
+    var w = el.querySelector(".bb-wuerfel");
+    if (w) {
+      var p = (o.fuell === null || isNaN(o.fuell)) ? 100
+            : Math.max(0, Math.min(100, o.fuell));
+      // Fast voll wie voll zeichnen: eine sichtbare Fuge bei 99,7 % Fuellung
+      // waere ein Darstellungsfehler, kein Befund.
+      if (p >= 98) { p = 100; }
+      w.style.setProperty("--fuell", p.toFixed(1));
+    }
   }
 
   function mach(o) {
