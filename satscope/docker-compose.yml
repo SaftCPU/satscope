@@ -13,7 +13,7 @@ services:
   # Dienstnamen mit Praefix, weil alle Apps im selben Docker-Netz haengen und
   # ein Dienst namens "web" dort bereits existiert (Mempool).
   sat-web:
-    image: ghcr.io/saftcpu/satscope:0.6.0@sha256:65e75c464db2c921be6677d6c57d5ff693d977bc6b62930f97ed3141f7f7354d
+    image: ghcr.io/saftcpu/satscope:0.6.1@sha256:255b69cb185c687c9b21ea53c1fbfd1b960bdbbc3677267e26b73ef42f3d0450
     user: "1000:1000"
     init: true
     restart: on-failure
